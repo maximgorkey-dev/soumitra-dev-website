@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/apps/flashcards/styles.css" />
+  <link rel="stylesheet" href="/apps/shared.css" />
 </head>
 <body>
   <header class="app-header">
@@ -26,20 +26,27 @@
 
   <main class="app-container app-main">
     <h1 class="app-title">Apps</h1>
-    <p class="app-lead">A private collection of small tools. More will appear here over time.</p>
+    <p class="app-lead">A private collection of small tools. Everything here is synced to your account.</p>
 
     <div class="app-grid">
       <a class="app-tile" href="/apps/flashcards/">
         <span class="app-tile-icon">&#9635;</span>
         <h2>Flash Cards</h2>
-        <p>Spaced-repetition study decks with keyboard-driven review and per-user progress.</p>
+        <p>Spaced-repetition study decks. Create your own decks and cards, review with keyboard shortcuts.</p>
+        <span class="app-tile-cta">Open &rarr;</span>
+      </a>
+
+      <a class="app-tile" href="/apps/notes/">
+        <span class="app-tile-icon">&#9776;</span>
+        <h2>Notes</h2>
+        <p>Quick notes with colors, labels, pinning, checklists and search. Autosaves as you type.</p>
         <span class="app-tile-cta">Open &rarr;</span>
       </a>
     </div>
   </main>
 
   <script>
-    fetch("/oauth2/userinfo", { credentials: "same-origin" })
+    fetch("/api/me", { credentials: "same-origin" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (d && d.email) document.getElementById("user-email").textContent = d.email;

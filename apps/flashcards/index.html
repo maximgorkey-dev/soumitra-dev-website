@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/apps/shared.css" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -26,14 +27,56 @@
 
   <main class="app-container app-main">
 
-    <!-- Deck list -->
+    <!-- ---------- deck list ---------- -->
     <section id="view-decks" class="view">
-      <h1 class="app-title">Your decks</h1>
-      <p class="app-lead">Pick a deck to study. Cards are scheduled with spaced repetition, so due counts grow back over time.</p>
+      <div class="view-head">
+        <div>
+          <h1 class="app-title">Your decks</h1>
+          <p class="app-lead">Cards are scheduled with spaced repetition, so due counts grow back over time.</p>
+        </div>
+        <button class="app-btn app-btn-primary" id="btn-new-deck">+ New deck</button>
+      </div>
       <div id="deck-list" class="deck-list"></div>
     </section>
 
-    <!-- Study session -->
+    <!-- ---------- deck editor ---------- -->
+    <section id="view-manage" class="view" hidden>
+      <div class="view-head">
+        <div>
+          <button class="app-btn app-btn-ghost app-btn-sm" id="btn-manage-back">&larr; Decks</button>
+          <h1 class="app-title" id="manage-deck-name" style="margin-top: 12px"></h1>
+          <p class="app-lead" id="manage-deck-desc"></p>
+        </div>
+        <div class="view-head-actions">
+          <button class="app-btn app-btn-ghost app-btn-sm" id="btn-edit-deck">Rename</button>
+          <button class="app-btn app-btn-ghost app-btn-sm" id="btn-import">Bulk import</button>
+          <button class="app-btn app-btn-ghost app-btn-sm" id="btn-export">Export</button>
+          <button class="app-btn app-btn-danger app-btn-sm" id="btn-delete-deck">Delete deck</button>
+        </div>
+      </div>
+
+      <form class="card-composer" id="card-form">
+        <div class="app-field">
+          <label class="app-label" for="new-front">Question</label>
+          <textarea class="app-textarea" id="new-front" rows="2" placeholder="What is RAII?" required></textarea>
+        </div>
+        <div class="app-field">
+          <label class="app-label" for="new-back">Answer</label>
+          <textarea class="app-textarea" id="new-back" rows="3" placeholder="Resource Acquisition Is Initialization &mdash; ..."></textarea>
+        </div>
+        <div class="app-field">
+          <label class="app-label" for="new-tags">Tags <span class="app-hint">comma separated, optional</span></label>
+          <input class="app-input" id="new-tags" placeholder="idioms, lifetime" />
+        </div>
+        <p class="app-hint">Wrap text in <code>`backticks`</code> to render it as code. Line breaks are preserved.</p>
+        <button class="app-btn app-btn-primary" type="submit">Add card</button>
+      </form>
+
+      <h2 class="section-heading">Cards <span id="card-count" class="chip"></span></h2>
+      <div id="card-list" class="card-list"></div>
+    </section>
+
+    <!-- ---------- study session ---------- -->
     <section id="view-study" class="view" hidden>
       <div class="study-top">
         <button class="app-btn app-btn-ghost app-btn-sm" id="btn-exit">&larr; Decks</button>
@@ -66,7 +109,7 @@
       </div>
     </section>
 
-    <!-- Session finished -->
+    <!-- ---------- session finished ---------- -->
     <section id="view-done" class="view" hidden>
       <h1 class="app-title">Session complete</h1>
       <p class="app-lead" id="done-summary"></p>
@@ -79,6 +122,10 @@
     <p id="load-error" class="load-error" hidden></p>
   </main>
 
+  <div id="modal-root"></div>
+  <div id="toast" class="app-toast"></div>
+
+  <script src="/apps/api.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

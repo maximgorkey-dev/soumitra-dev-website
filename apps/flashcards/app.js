@@ -1,169 +1,313 @@
-/* Flash cards — static SPA. Progress is stored per signed-in user in localStorage. */
+/* Flash cards front end. All content and scheduling live in the API. */
 
-const STORE_PREFIX = "fc:v1";
-const NEW_CARDS_PER_SESSION = 20;
-const MAX_INTERVAL_DAYS = 730;
-const MIN_EASE = 1.3;
-const MATURE_INTERVAL = 21;
+const NEW_PER_SESSION = 20;
 
-let userKey = "local";
 let decks = [];
+let manageDeck = null;
+let manageCards = [];
 let session = null;
 
-/* ---------- storage ---------- */
-
-const storeKey = (deckId) => `${STORE_PREFIX}:${userKey}:${deckId}`;
-
-function loadProgress(deckId) {
-  try {
-    return JSON.parse(localStorage.getItem(storeKey(deckId))) || {};
-  } catch {
-    return {};
-  }
-}
-
-function saveProgress(deckId, progress) {
-  try {
-    localStorage.setItem(storeKey(deckId), JSON.stringify(progress));
-  } catch {
-    /* quota or private mode — reviews still work for this session */
-  }
-}
-
-/* ---------- dates ---------- */
-
-const todayISO = () => new Date().toISOString().slice(0, 10);
-
-function addDaysISO(days) {
-  const d = new Date();
-  d.setHours(12, 0, 0, 0);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
-/* ---------- scheduling (SM-2, simplified) ---------- */
-
-function schedule(prev, grade) {
-  let reps = prev?.reps ?? 0;
-  let ease = prev?.ease ?? 2.5;
-  let interval = prev?.interval ?? 0;
-  let lapses = prev?.lapses ?? 0;
-
-  if (grade === "again") {
-    reps = 0;
-    lapses += 1;
-    ease = Math.max(MIN_EASE, ease - 0.2);
-    interval = 0;
-  } else if (grade === "hard") {
-    ease = Math.max(MIN_EASE, ease - 0.15);
-    interval = reps === 0 ? 1 : Math.max(1, Math.round(interval * 1.2));
-    reps += 1;
-  } else if (grade === "good") {
-    if (reps === 0) interval = 1;
-    else if (reps === 1) interval = 3;
-    else interval = Math.max(1, Math.round(interval * ease));
-    reps += 1;
-  } else {
-    ease += 0.15;
-    if (reps === 0) interval = 2;
-    else if (reps === 1) interval = 5;
-    else interval = Math.max(1, Math.round(interval * ease * 1.3));
-    reps += 1;
-  }
-
-  interval = Math.min(interval, MAX_INTERVAL_DAYS);
-  return { reps, ease, interval, lapses, due: addDaysISO(interval) };
-}
-
-/* ---------- deck stats ---------- */
-
-function deckStats(deck) {
-  const progress = loadProgress(deck.id);
-  const today = todayISO();
-  let due = 0;
-  let fresh = 0;
-  let learned = 0;
-
-  for (const card of deck.cards) {
-    const st = progress[card.id];
-    if (!st) fresh += 1;
-    else {
-      if (st.due <= today) due += 1;
-      if (st.interval >= MATURE_INTERVAL) learned += 1;
-    }
-  }
-  return { due, fresh, learned, total: deck.cards.length };
-}
-
-/* ---------- rendering helpers ---------- */
-
-function escapeHTML(s) {
-  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-}
-
-/* Allows `inline code` and line breaks in card text. */
-function renderText(s) {
-  return escapeHTML(s)
-    .replace(/`([^`]+)`/g, "<code>$1</code>")
-    .replace(/\n/g, "<br />");
-}
-
-const el = (id) => document.getElementById(id);
+/* ---------- views ---------- */
 
 function showView(name) {
-  for (const v of ["decks", "study", "done"]) el(`view-${v}`).hidden = v !== name;
+  for (const v of ["decks", "manage", "study", "done"]) el(`view-${v}`).hidden = v !== name;
 }
 
 /* ---------- deck list ---------- */
+
+async function refreshDecks() {
+  const data = await API.get("/api/decks");
+  decks = data.decks;
+  renderDeckList();
+}
 
 function renderDeckList() {
   const list = el("deck-list");
   list.innerHTML = "";
 
   if (!decks.length) {
-    list.innerHTML = '<p class="deck-empty">No decks found.</p>';
+    list.innerHTML = `
+      <div class="app-empty">
+        <span class="app-empty-icon">&#9635;</span>
+        You have no decks yet. Create one to get started.
+      </div>`;
     return;
   }
 
   for (const deck of decks) {
-    const s = deckStats(deck);
-    const studyable = s.due + s.fresh > 0;
+    const c = deck.counts;
+    const studyable = c.due + c.new > 0;
 
-    const card = document.createElement("div");
-    card.className = "deck-card";
-    card.innerHTML = `
+    const node = document.createElement("div");
+    node.className = "deck-card";
+    node.innerHTML = `
       <h2>${escapeHTML(deck.name)}</h2>
       <p class="deck-desc">${escapeHTML(deck.description || "")}</p>
       <div class="deck-stats">
-        <span class="stat stat-due">${s.due} due</span>
-        <span class="stat stat-new">${s.fresh} new</span>
-        <span class="stat stat-learned">${s.learned} learned</span>
-        <span class="stat">${s.total} total</span>
+        <span class="chip stat-due">${c.due} due</span>
+        <span class="chip stat-new">${c.new} new</span>
+        <span class="chip stat-learned">${c.learned} learned</span>
+        <span class="chip">${c.total} total</span>
       </div>
       <div class="deck-actions">
-        <button class="app-btn app-btn-primary app-btn-sm" data-study="${escapeHTML(deck.id)}" ${studyable ? "" : "disabled"}>
-          ${studyable ? "Study" : "All caught up"}
+        <button class="app-btn app-btn-primary app-btn-sm" data-study="${deck.id}" ${studyable ? "" : "disabled"}>
+          ${studyable ? "Study" : c.total ? "All caught up" : "No cards yet"}
         </button>
-        <button class="app-btn app-btn-ghost app-btn-sm" data-reset="${escapeHTML(deck.id)}">Reset progress</button>
+        <button class="app-btn app-btn-ghost app-btn-sm" data-manage="${deck.id}">Edit cards</button>
       </div>`;
-    list.appendChild(card);
+    list.appendChild(node);
   }
 
   list.querySelectorAll("[data-study]").forEach((b) =>
     b.addEventListener("click", () => startSession(b.dataset.study))
   );
-  list.querySelectorAll("[data-reset]").forEach((b) =>
-    b.addEventListener("click", () => {
-      const deck = decks.find((d) => d.id === b.dataset.reset);
-      if (confirm(`Reset all progress for "${deck.name}"? This cannot be undone.`)) {
-        localStorage.removeItem(storeKey(deck.id));
-        renderDeckList();
-      }
-    })
+  list.querySelectorAll("[data-manage]").forEach((b) =>
+    b.addEventListener("click", () => openManage(b.dataset.manage))
   );
 }
 
-/* ---------- session ---------- */
+async function newDeck() {
+  const res = await openModal({
+    title: "New deck",
+    fields: [
+      { name: "name", label: "Name", placeholder: "Rust ownership" },
+      { name: "description", label: "Description", type: "textarea", rows: 2, placeholder: "Optional" },
+    ],
+    confirmLabel: "Create",
+  });
+  if (!res || !res.name.trim()) return;
+
+  try {
+    const deck = await API.post("/api/decks", { name: res.name.trim(), description: res.description.trim() });
+    toast(`Created "${deck.name}"`);
+    await refreshDecks();
+    openManage(deck.id);
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+/* ---------- deck editor ---------- */
+
+async function openManage(deckId) {
+  try {
+    const data = await API.get(`/api/decks/${deckId}/cards`);
+    manageDeck = data.deck;
+    manageCards = data.cards;
+    el("manage-deck-name").textContent = manageDeck.name;
+    el("manage-deck-desc").textContent = manageDeck.description || "";
+    renderCardList();
+    showView("manage");
+    window.scrollTo({ top: 0 });
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+function renderCardList() {
+  el("card-count").textContent = `${manageCards.length} card${manageCards.length === 1 ? "" : "s"}`;
+  const list = el("card-list");
+  list.innerHTML = "";
+
+  if (!manageCards.length) {
+    list.innerHTML = `<div class="app-empty">No cards yet. Add one above, or use bulk import.</div>`;
+    return;
+  }
+
+  manageCards.forEach((card, i) => {
+    const row = document.createElement("div");
+    row.className = "card-row";
+    row.innerHTML = `
+      <span class="card-row-num">${i + 1}</span>
+      <div class="card-row-body">
+        <div class="card-row-front">${renderText(card.front)}</div>
+        <div class="card-row-back">${renderText(card.back)}</div>
+        ${card.tags.length ? `<div class="card-row-tags">${card.tags.map((t) => `<span class="chip">${escapeHTML(t)}</span>`).join("")}</div>` : ""}
+      </div>
+      <div class="card-row-actions">
+        <button class="app-btn app-btn-ghost app-btn-sm" data-edit="${card.id}">Edit</button>
+        <button class="app-btn app-btn-danger app-btn-sm" data-del="${card.id}">Delete</button>
+      </div>`;
+    list.appendChild(row);
+  });
+
+  list.querySelectorAll("[data-edit]").forEach((b) =>
+    b.addEventListener("click", () => editCard(b.dataset.edit))
+  );
+  list.querySelectorAll("[data-del]").forEach((b) =>
+    b.addEventListener("click", () => deleteCard(b.dataset.del))
+  );
+}
+
+async function addCard(e) {
+  e.preventDefault();
+  const front = el("new-front").value.trim();
+  const back = el("new-back").value.trim();
+  if (!front) return;
+
+  try {
+    await API.post(`/api/decks/${manageDeck.id}/cards`, {
+      front,
+      back,
+      tags: parseTags(el("new-tags").value),
+    });
+    el("new-front").value = "";
+    el("new-back").value = "";
+    el("new-tags").value = "";
+    el("new-front").focus();
+    toast("Card added");
+    await openManage(manageDeck.id);
+    await refreshDecks();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function editCard(cardId) {
+  const card = manageCards.find((c) => c.id === cardId);
+  if (!card) return;
+
+  const res = await openModal({
+    title: "Edit card",
+    fields: [
+      { name: "front", label: "Question", type: "textarea", rows: 3, value: card.front },
+      { name: "back", label: "Answer", type: "textarea", rows: 5, value: card.back },
+      { name: "tags", label: "Tags", hint: "comma separated", value: card.tags.join(", ") },
+    ],
+  });
+  if (!res || !res.front.trim()) return;
+
+  try {
+    await API.patch(`/api/cards/${cardId}`, {
+      front: res.front.trim(),
+      back: res.back.trim(),
+      tags: parseTags(res.tags),
+    });
+    toast("Card updated");
+    await openManage(manageDeck.id);
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function deleteCard(cardId) {
+  const card = manageCards.find((c) => c.id === cardId);
+  if (!card) return;
+  const ok = await confirmModal({
+    title: "Delete this card?",
+    subtitle: card.front.slice(0, 140),
+  });
+  if (!ok) return;
+
+  try {
+    await API.del(`/api/cards/${cardId}`);
+    toast("Card deleted");
+    await openManage(manageDeck.id);
+    await refreshDecks();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function renameDeck() {
+  const res = await openModal({
+    title: "Rename deck",
+    fields: [
+      { name: "name", label: "Name", value: manageDeck.name },
+      { name: "description", label: "Description", type: "textarea", rows: 2, value: manageDeck.description || "" },
+    ],
+  });
+  if (!res || !res.name.trim()) return;
+
+  try {
+    await API.patch(`/api/decks/${manageDeck.id}`, {
+      name: res.name.trim(),
+      description: res.description.trim(),
+    });
+    toast("Deck updated");
+    await openManage(manageDeck.id);
+    await refreshDecks();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function deleteDeck() {
+  const ok = await confirmModal({
+    title: `Delete "${manageDeck.name}"?`,
+    subtitle: `This removes the deck, its ${manageCards.length} card(s) and all review history. This cannot be undone.`,
+  });
+  if (!ok) return;
+
+  try {
+    await API.del(`/api/decks/${manageDeck.id}`);
+    toast("Deck deleted");
+    manageDeck = null;
+    await refreshDecks();
+    showView("decks");
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function bulkImport() {
+  const res = await openModal({
+    title: "Bulk import cards",
+    subtitle: "One card per line. Question and answer separated by the character you choose. An optional third column adds comma-separated tags.",
+    fields: [
+      {
+        name: "separator",
+        label: "Separator",
+        type: "select",
+        value: "tab",
+        options: [
+          { value: "tab", label: "Tab (paste straight from a spreadsheet)" },
+          { value: "comma", label: "Comma" },
+          { value: "semicolon", label: "Semicolon" },
+          { value: "pipe", label: "Pipe |" },
+        ],
+      },
+      {
+        name: "text",
+        label: "Cards",
+        type: "textarea",
+        rows: 10,
+        placeholder: "What is RAII?\tResource Acquisition Is Initialization\tidioms\nWhat is a data race?\tConcurrent unsynchronized access where one is a write",
+      },
+    ],
+    confirmLabel: "Import",
+  });
+  if (!res || !res.text.trim()) return;
+
+  try {
+    const out = await API.post(`/api/decks/${manageDeck.id}/cards/bulk`, {
+      text: res.text,
+      separator: res.separator,
+    });
+    toast(`Imported ${out.created} card(s)${out.skipped ? `, skipped ${out.skipped} incomplete line(s)` : ""}`);
+    await openManage(manageDeck.id);
+    await refreshDecks();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function exportDeck() {
+  try {
+    const data = await API.get(`/api/decks/${manageDeck.id}/export`);
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${manageDeck.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast("Deck exported");
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+/* ---------- study ---------- */
 
 function shuffle(arr) {
   for (let i = arr.length - 1; i > 0; i--) {
@@ -173,28 +317,25 @@ function shuffle(arr) {
   return arr;
 }
 
-function startSession(deckId) {
-  const deck = decks.find((d) => d.id === deckId);
-  if (!deck) return;
+async function startSession(deckId) {
+  try {
+    const data = await API.get(`/api/decks/${deckId}/study?limit_new=${NEW_PER_SESSION}`);
+    const due = data.cards.filter((c) => c.seen);
+    const fresh = data.cards.filter((c) => !c.seen);
+    const queue = shuffle(due).concat(shuffle(fresh));
+    if (!queue.length) {
+      toast("Nothing due in this deck right now");
+      return;
+    }
 
-  const progress = loadProgress(deckId);
-  const today = todayISO();
-  const due = [];
-  const fresh = [];
-
-  for (const card of deck.cards) {
-    const st = progress[card.id];
-    if (!st) fresh.push(card);
-    else if (st.due <= today) due.push(card);
+    session = { deck: data.deck, queue, done: 0, planned: queue.length, again: 0, revealed: false };
+    el("study-deck-name").textContent = data.deck.name;
+    showView("study");
+    renderCard();
+    window.scrollTo({ top: 0 });
+  } catch (err) {
+    toast(err.message, true);
   }
-
-  const queue = shuffle(due).concat(shuffle(fresh).slice(0, NEW_CARDS_PER_SESSION));
-  if (!queue.length) return;
-
-  session = { deck, progress, queue, done: 0, planned: queue.length, again: 0, revealed: false };
-  el("study-deck-name").textContent = deck.name;
-  showView("study");
-  renderCard();
 }
 
 function renderCard() {
@@ -207,9 +348,7 @@ function renderCard() {
   el("card-divider").hidden = true;
   el("btn-reveal").hidden = false;
   el("grade-row").hidden = true;
-
-  const tags = el("card-tags");
-  tags.innerHTML = (card.tags || []).map((t) => `<li>${escapeHTML(t)}</li>`).join("");
+  el("card-tags").innerHTML = card.tags.map((t) => `<li>${escapeHTML(t)}</li>`).join("");
 
   el("study-counter").textContent = `${session.done} / ${session.planned} · ${session.queue.length} left`;
   el("progress-fill").style.width = `${(session.done / (session.done + session.queue.length)) * 100}%`;
@@ -224,49 +363,59 @@ function reveal() {
   el("grade-row").hidden = false;
 }
 
-function grade(g) {
+async function grade(g) {
   if (!session || !session.revealed) return;
-
   const card = session.queue.shift();
-  session.progress[card.id] = schedule(session.progress[card.id], g);
-  saveProgress(session.deck.id, session.progress);
+  session.revealed = false;
 
   if (g === "again") {
     session.again += 1;
-    session.queue.push(card); // see it again before the session ends
+    session.queue.push(card);
   } else {
     session.done += 1;
   }
 
   if (session.queue.length) renderCard();
   else finishSession();
+
+  try {
+    await API.post("/api/reviews", { card_id: card.id, grade: g });
+  } catch (err) {
+    toast(`Could not save that review: ${err.message}`, true);
+  }
 }
 
-function finishSession() {
+async function finishSession() {
   const { done, again, deck } = session;
-  const s = deckStats(deck);
   el("done-summary").textContent =
     `You reviewed ${done} card${done === 1 ? "" : "s"} in "${deck.name}"` +
-    (again ? `, with ${again} marked Again.` : ".") +
-    ` ${s.due + s.fresh} card${s.due + s.fresh === 1 ? "" : "s"} remain available today.`;
+    (again ? `, with ${again} marked Again.` : ".");
   showView("done");
-  renderDeckList();
+  await refreshDecks();
 }
 
 function exitSession() {
   session = null;
-  renderDeckList();
   showView("decks");
+  refreshDecks().catch(() => {});
 }
 
 /* ---------- events ---------- */
+
+el("btn-new-deck").addEventListener("click", newDeck);
+el("btn-manage-back").addEventListener("click", () => { showView("decks"); refreshDecks().catch(() => {}); });
+el("btn-edit-deck").addEventListener("click", renameDeck);
+el("btn-delete-deck").addEventListener("click", deleteDeck);
+el("btn-import").addEventListener("click", bulkImport);
+el("btn-export").addEventListener("click", exportDeck);
+el("card-form").addEventListener("submit", addCard);
 
 el("btn-reveal").addEventListener("click", reveal);
 el("btn-exit").addEventListener("click", exitSession);
 el("btn-back-decks").addEventListener("click", exitSession);
 el("btn-again-deck").addEventListener("click", () => {
   const id = session?.deck.id;
-  exitSession();
+  session = null;
   if (id) startSession(id);
 });
 document.querySelectorAll("[data-grade]").forEach((b) =>
@@ -274,7 +423,8 @@ document.querySelectorAll("[data-grade]").forEach((b) =>
 );
 
 document.addEventListener("keydown", (e) => {
-  if (el("view-study").hidden) return;
+  if (el("view-study").hidden || !session) return;
+  if (document.querySelector(".app-modal-backdrop")) return;
   if (e.key === " " || e.key === "Enter") {
     e.preventDefault();
     session.revealed ? grade("good") : reveal();
@@ -287,48 +437,10 @@ document.addEventListener("keydown", (e) => {
 
 /* ---------- boot ---------- */
 
-async function identify() {
-  try {
-    const r = await fetch("/oauth2/userinfo", { credentials: "same-origin" });
-    if (!r.ok) return;
-    const d = await r.json();
-    if (d.email) {
-      userKey = d.email;
-      el("user-email").textContent = d.email;
-    }
-  } catch {
-    /* not behind the proxy (e.g. local preview) — fall back to "local" */
-  }
-}
-
-async function loadDecks() {
-  const manifest = await fetch("decks/index.json", { cache: "no-cache" }).then((r) => {
-    if (!r.ok) throw new Error(`decks/index.json returned ${r.status}`);
-    return r.json();
-  });
-
-  const loaded = await Promise.all(
-    manifest.decks.map(async (entry) => {
-      const d = await fetch(`decks/${entry.file}`, { cache: "no-cache" }).then((r) => {
-        if (!r.ok) throw new Error(`${entry.file} returned ${r.status}`);
-        return r.json();
-      });
-      return {
-        id: entry.id,
-        name: d.name || entry.id,
-        description: d.description || "",
-        cards: (d.cards || []).map((c, i) => ({ ...c, id: c.id || `${entry.id}-${i}` })),
-      };
-    })
-  );
-  return loaded;
-}
-
 (async function init() {
-  await identify();
+  await loadIdentity();
   try {
-    decks = await loadDecks();
-    renderDeckList();
+    await refreshDecks();
   } catch (err) {
     const p = el("load-error");
     p.textContent = `Could not load decks: ${err.message}`;

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Notes — soumitra.dev</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/apps/shared.css" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-container app-container-wide app-header-inner">
+      <a class="app-brand" href="/apps/">
+        <span class="app-brand-mark">SM</span>
+        <span>Notes</span>
+      </a>
+
+      <div class="search-wrap">
+        <input class="app-input search-input" id="search" type="search" placeholder="Search notes..." autocomplete="off" />
+      </div>
+
+      <div class="app-user">
+        <span id="save-state" class="save-state"></span>
+        <span id="user-email" class="app-user-email"></span>
+        <a class="app-btn app-btn-ghost app-btn-sm" href="/oauth2/sign_out">Sign out</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-container app-container-wide app-main">
+
+    <!-- composer -->
+    <div class="composer" id="composer">
+      <input class="composer-collapsed" id="composer-trigger" placeholder="Take a note..." readonly />
+      <form class="composer-open" id="composer-form" hidden>
+        <input class="composer-title" id="composer-title" placeholder="Title" />
+        <textarea class="composer-body" id="composer-body" rows="3" placeholder="Take a note...  (use - [ ] for a checklist)"></textarea>
+        <div class="composer-foot">
+          <div class="color-row" id="composer-colors"></div>
+          <div class="composer-actions">
+            <input class="app-input composer-labels" id="composer-labels" placeholder="labels, comma separated" />
+            <button type="button" class="app-btn app-btn-ghost app-btn-sm" id="composer-close">Close</button>
+            <button type="submit" class="app-btn app-btn-primary app-btn-sm">Add note</button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- filters -->
+    <div class="filter-bar">
+      <div class="label-filters" id="label-filters"></div>
+      <button class="app-btn app-btn-ghost app-btn-sm" id="btn-archive-toggle">Show archive</button>
+    </div>
+
+    <section id="pinned-section" hidden>
+      <h2 class="board-heading">Pinned</h2>
+      <div class="board" id="board-pinned"></div>
+    </section>
+
+    <section id="others-section">
+      <h2 class="board-heading" id="others-heading" hidden>Others</h2>
+      <div class="board" id="board-others"></div>
+    </section>
+
+    <div class="app-empty" id="empty-state" hidden>
+      <span class="app-empty-icon">&#9776;</span>
+      <span id="empty-text">No notes yet. Write your first one above.</span>
+    </div>
+
+    <p id="load-error" class="load-error" hidden></p>
+  </main>
+
+  <div id="modal-root"></div>
+  <div id="toast" class="app-toast"></div>
+
+  <script src="/apps/api.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
