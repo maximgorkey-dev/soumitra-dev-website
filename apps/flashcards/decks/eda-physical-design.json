@@ -1,0 +1,81 @@
+{
+  "name": "EDA & Physical Design",
+  "description": "Timing, placement, routing and the vocabulary of the RTL-to-GDSII flow.",
+  "cards": [
+    {
+      "front": "What is setup time, and what does a setup violation mean?",
+      "back": "Setup time is the interval before the clock edge during which data must already be stable at the flop input. A setup violation means the combinational path is too slow for the clock period — the data arrives after the required time. It is fixed by shortening logic, upsizing cells, or lowering frequency.",
+      "tags": ["timing"]
+    },
+    {
+      "front": "What is hold time, and why can a hold violation be more dangerous than a setup violation?",
+      "back": "Hold time is the interval after the clock edge during which data must remain stable. A hold violation means data arrives too *early* and races through to the next flop in the same cycle. It is dangerous because, unlike setup, it cannot be fixed by slowing the clock — the silicon is simply broken.",
+      "tags": ["timing"]
+    },
+    {
+      "front": "Define slack in static timing analysis.",
+      "back": "Slack = required arrival time − actual arrival time. Positive slack means the path meets timing; negative slack is a violation. The Worst Negative Slack (WNS) is the single worst path, while Total Negative Slack (TNS) sums all violations and indicates how widespread the problem is.",
+      "tags": ["timing", "sta"]
+    },
+    {
+      "front": "What is clock skew, and how does it interact with setup and hold?",
+      "back": "Clock skew is the difference in clock arrival time between two sequential elements. Positive skew (capture clock later than launch) helps setup but hurts hold; negative skew does the reverse. Clock tree synthesis aims to bound skew across the design.",
+      "tags": ["clocking"]
+    },
+    {
+      "front": "What is the difference between logical and physical hierarchy?",
+      "back": "Logical hierarchy is the module structure written in RTL. Physical hierarchy is how the design is partitioned into physical blocks for implementation. They need not match — flattening or regrouping is common — which is exactly why mapping physical metrics back to RTL is a hard and valuable problem.",
+      "tags": ["hierarchy"]
+    },
+    {
+      "front": "What is congestion, and why does it matter before routing completes?",
+      "back": "Congestion is demand for routing resources exceeding supply in a region. It matters early because a congested placement leads to detours, which add wire delay and can make timing unclosable. Global route or trial route estimates congestion during placement so it can be relieved before detailed routing.",
+      "tags": ["routing", "placement"]
+    },
+    {
+      "front": "What is the RTL-to-GDSII flow, in order?",
+      "back": "RTL → logic synthesis → floorplanning → placement → clock tree synthesis → routing → signoff (timing, power, physical verification with DRC and LVS) → GDSII tapeout. Timing analysis and optimization are interleaved throughout rather than being a single stage.",
+      "tags": ["flow"]
+    },
+    {
+      "front": "What is the difference between DRC and LVS?",
+      "back": "DRC (Design Rule Check) verifies the layout obeys the foundry's geometric manufacturing rules — spacing, width, enclosure. LVS (Layout Versus Schematic) verifies the extracted netlist from the layout is electrically equivalent to the intended schematic netlist.",
+      "tags": ["verification", "signoff"]
+    },
+    {
+      "front": "What are SDC constraints used for?",
+      "back": "Synopsys Design Constraints is the standard format describing design intent to implementation and analysis tools: clock definitions and periods, input and output delays, false paths, multicycle paths, and load or drive characteristics. Wrong constraints are a leading cause of both pessimism and missed violations.",
+      "tags": ["constraints"]
+    },
+    {
+      "front": "Distinguish dynamic power from leakage power.",
+      "back": "Dynamic power is consumed by switching activity — charging and discharging capacitance, proportional to C·V²·f — plus short-circuit current. Leakage (static) power flows even when idle, dominated by subthreshold and gate leakage, and grows sharply as process nodes shrink.",
+      "tags": ["power"]
+    },
+    {
+      "front": "What is crosstalk, and what are its two effects on timing?",
+      "back": "Crosstalk is capacitive coupling between adjacent nets. It causes *delta delay*, where a switching aggressor speeds up or slows down the victim net, and *noise glitches*, where a static victim gets a spurious pulse that can be latched. Both are analyzed at signoff.",
+      "tags": ["signal-integrity"]
+    },
+    {
+      "front": "What is a false path, and why declare one?",
+      "back": "A false path is a topological path that can never be logically exercised, such as a path between mutually exclusive multiplexer selections or across an asynchronous clock domain crossing. Declaring it stops the tool from wasting optimization effort and from reporting an unfixable violation.",
+      "tags": ["constraints", "timing"]
+    },
+    {
+      "front": "What is the purpose of a multicycle path constraint?",
+      "back": "It tells the timing engine that a path is legitimately allowed more than one clock cycle to propagate, because the design guarantees the destination is not sampled on the next edge. Without it, the tool reports a violation on a path that is functionally correct.",
+      "tags": ["constraints", "timing"]
+    },
+    {
+      "front": "What is a PVT corner, and why analyze multiple corners?",
+      "back": "Process, Voltage, Temperature — a specific combination of manufacturing variation, supply voltage, and operating temperature. Delay behaves differently at each corner, so setup typically limits at the slow corner and hold at the fast corner. Multi-corner multi-mode analysis covers all valid combinations.",
+      "tags": ["signoff", "variation"]
+    },
+    {
+      "front": "What is placement legalization?",
+      "back": "The step that moves cells from their ideal analytical positions onto legal sites in the standard cell rows, removing overlaps and satisfying row, orientation, and spacing rules, while perturbing the placement as little as possible so timing and congestion do not degrade.",
+      "tags": ["placement"]
+    }
+  ]
+}

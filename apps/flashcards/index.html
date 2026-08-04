@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Flash Cards — soumitra.dev</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-container app-header-inner">
+      <a class="app-brand" href="/apps/">
+        <span class="app-brand-mark">SM</span>
+        <span>Flash Cards</span>
+      </a>
+      <div class="app-user">
+        <span id="user-email" class="app-user-email"></span>
+        <a class="app-btn app-btn-ghost app-btn-sm" href="/oauth2/sign_out">Sign out</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-container app-main">
+
+    <!-- Deck list -->
+    <section id="view-decks" class="view">
+      <h1 class="app-title">Your decks</h1>
+      <p class="app-lead">Pick a deck to study. Cards are scheduled with spaced repetition, so due counts grow back over time.</p>
+      <div id="deck-list" class="deck-list"></div>
+    </section>
+
+    <!-- Study session -->
+    <section id="view-study" class="view" hidden>
+      <div class="study-top">
+        <button class="app-btn app-btn-ghost app-btn-sm" id="btn-exit">&larr; Decks</button>
+        <span class="study-deck-name" id="study-deck-name"></span>
+        <span class="study-counter" id="study-counter"></span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+
+      <div class="card" id="card">
+        <div class="card-face">
+          <span class="card-label">Question</span>
+          <div class="card-text" id="card-front"></div>
+        </div>
+        <div class="card-divider" id="card-divider" hidden></div>
+        <div class="card-face" id="card-back-wrap" hidden>
+          <span class="card-label">Answer</span>
+          <div class="card-text card-text-answer" id="card-back"></div>
+        </div>
+        <ul class="card-tags" id="card-tags"></ul>
+      </div>
+
+      <div class="card-actions">
+        <button class="app-btn app-btn-primary app-btn-wide" id="btn-reveal">Show answer <kbd>Space</kbd></button>
+        <div class="grade-row" id="grade-row" hidden>
+          <button class="app-btn grade grade-again" data-grade="again">Again <kbd>1</kbd></button>
+          <button class="app-btn grade grade-hard" data-grade="hard">Hard <kbd>2</kbd></button>
+          <button class="app-btn grade grade-good" data-grade="good">Good <kbd>3</kbd></button>
+          <button class="app-btn grade grade-easy" data-grade="easy">Easy <kbd>4</kbd></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Session finished -->
+    <section id="view-done" class="view" hidden>
+      <h1 class="app-title">Session complete</h1>
+      <p class="app-lead" id="done-summary"></p>
+      <div class="done-actions">
+        <button class="app-btn app-btn-primary" id="btn-again-deck">Study again</button>
+        <button class="app-btn app-btn-ghost" id="btn-back-decks">Back to decks</button>
+      </div>
+    </section>
+
+    <p id="load-error" class="load-error" hidden></p>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

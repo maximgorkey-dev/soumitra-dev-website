@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Apps — soumitra.dev</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/apps/flashcards/styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-container app-header-inner">
+      <a class="app-brand" href="/">
+        <span class="app-brand-mark">SM</span>
+        <span>soumitra.dev</span>
+      </a>
+      <div class="app-user">
+        <span id="user-email" class="app-user-email"></span>
+        <a class="app-btn app-btn-ghost app-btn-sm" href="/oauth2/sign_out">Sign out</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-container app-main">
+    <h1 class="app-title">Apps</h1>
+    <p class="app-lead">A private collection of small tools. More will appear here over time.</p>
+
+    <div class="app-grid">
+      <a class="app-tile" href="/apps/flashcards/">
+        <span class="app-tile-icon">&#9635;</span>
+        <h2>Flash Cards</h2>
+        <p>Spaced-repetition study decks with keyboard-driven review and per-user progress.</p>
+        <span class="app-tile-cta">Open &rarr;</span>
+      </a>
+    </div>
+  </main>
+
+  <script>
+    fetch("/oauth2/userinfo", { credentials: "same-origin" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d && d.email) document.getElementById("user-email").textContent = d.email;
+      })
+      .catch(() => {});
+  </script>
+</body>
+</html>

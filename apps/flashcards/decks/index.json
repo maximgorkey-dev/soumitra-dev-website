@@ -1,0 +1,7 @@
+{
+  "decks": [
+    { "id": "cpp-core", "file": "cpp-core.json" },
+    { "id": "eda-physical-design", "file": "eda-physical-design.json" },
+    { "id": "linux-gdb", "file": "linux-gdb.json" }
+  ]
+}
