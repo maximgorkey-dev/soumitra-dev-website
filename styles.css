@@ -352,6 +352,62 @@ h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; }
 .edu-list { margin: 8px 0 0; padding-left: 18px; color: var(--text-dim); }
 .edu-list li { margin-bottom: 6px; }
 
+/* Patents */
+.patent-list { display: grid; gap: 22px; }
+.patent-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 26px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.patent-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+.patent-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.patent-number {
+  font-family: var(--mono);
+  font-size: 0.86rem;
+  font-weight: 500;
+  padding: 4px 11px;
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
+}
+.patent-status {
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--accent-2);
+}
+.patent-card h3 { font-size: 1.12rem; line-height: 1.4; margin-bottom: 10px; }
+.patent-meta {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin: 0 0 14px;
+}
+.patent-abstract { color: var(--text-dim); margin: 0 0 14px; }
+.patent-inventors { font-size: 0.9rem; color: var(--text-dim); margin: 0; }
+.patent-inventors strong { color: var(--text); }
+.patent-label {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  margin-bottom: 3px;
+}
+.patent-links { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 16px; }
+.patent-links a { font-weight: 600; font-size: 0.9rem; }
+
 /* Projects */
 .projects-grid {
   display: grid;
