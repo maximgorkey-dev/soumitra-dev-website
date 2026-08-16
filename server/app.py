@@ -27,6 +27,9 @@ MIN_EASE = 1.3
 MAX_INTERVAL_DAYS = 730
 MATURE_INTERVAL = 21
 NOTE_COLORS = {"default", "red", "orange", "yellow", "green", "teal", "blue", "purple", "pink", "gray"}
+MAX_SPAN = 4
+MIN_NOTE_HEIGHT = 140
+MAX_NOTE_HEIGHT = 1600
 
 app = FastAPI(title="soumitra.dev apps API", docs_url=None, redoc_url=None, openapi_url=None)
 
@@ -50,6 +53,8 @@ CREATE TABLE IF NOT EXISTS notes (
   labels TEXT NOT NULL DEFAULT '[]',
   pinned INTEGER NOT NULL DEFAULT 0,
   archived INTEGER NOT NULL DEFAULT 0,
+  span_w INTEGER NOT NULL DEFAULT 1,
+  height_px INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -114,6 +119,24 @@ def db() -> Iterator[sqlite3.Connection]:
         conn.close()
 
 
+# Columns added after the first release. SQLite has no ADD COLUMN IF NOT EXISTS,
+# so each is applied only when absent. ADD COLUMN never rewrites existing rows.
+MIGRATIONS: list[tuple[str, str, str]] = [
+    ("notes", "span_w", "ALTER TABLE notes ADD COLUMN span_w INTEGER NOT NULL DEFAULT 1"),
+    ("notes", "height_px", "ALTER TABLE notes ADD COLUMN height_px INTEGER NOT NULL DEFAULT 0"),
+]
+
+
+def migrate(conn: sqlite3.Connection) -> list[str]:
+    applied: list[str] = []
+    for table, column, sql in MIGRATIONS:
+        existing = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
+        if column not in existing:
+            conn.execute(sql)
+            applied.append(f"{table}.{column}")
+    return applied
+
+
 @app.on_event("startup")
 def init_db() -> None:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -121,7 +144,10 @@ def init_db() -> None:
     try:
         conn.execute("PRAGMA journal_mode = WAL")
         conn.executescript(SCHEMA)
+        applied = migrate(conn)
         conn.commit()
+        if applied:
+            print(f"applied migrations: {', '.join(applied)}", flush=True)
     finally:
         conn.close()
 
@@ -165,6 +191,25 @@ def loads_list(raw: str) -> list[str]:
         return [str(x) for x in val] if isinstance(val, list) else []
     except (ValueError, TypeError):
         return []
+
+
+def clamp_span(value: Any) -> int:
+    """Board width in grid columns. The front end clamps again to what fits."""
+    try:
+        return max(1, min(MAX_SPAN, int(value)))
+    except (TypeError, ValueError):
+        return 1
+
+
+def clamp_height(value: Any) -> int:
+    """0 means grow to fit the content; anything else is a pinned pixel height."""
+    try:
+        px = int(value)
+    except (TypeError, ValueError):
+        return 0
+    if px <= 0:
+        return 0
+    return max(MIN_NOTE_HEIGHT, min(MAX_NOTE_HEIGHT, px))
 
 
 def clean_labels(labels: list[str] | None) -> list[str]:
@@ -221,6 +266,8 @@ def note_row(row: sqlite3.Row) -> dict[str, Any]:
         "labels": loads_list(row["labels"]),
         "pinned": bool(row["pinned"]),
         "archived": bool(row["archived"]),
+        "span_w": row["span_w"],
+        "height_px": row["height_px"],
         "created_at": row["created_at"],
         "updated_at": row["updated_at"],
     }
@@ -291,6 +338,8 @@ class NoteIn(BaseModel):
     color: str = "default"
     labels: list[str] | None = None
     pinned: bool = False
+    span_w: int = 1
+    height_px: int = 0
 
 
 class NotePatch(BaseModel):
@@ -300,6 +349,8 @@ class NotePatch(BaseModel):
     labels: list[str] | None = None
     pinned: bool | None = None
     archived: bool | None = None
+    span_w: int | None = None
+    height_px: int | None = None
 
 
 class DeckIn(BaseModel):
@@ -387,10 +438,12 @@ def create_note(payload: NoteIn, user: str = User) -> dict[str, Any]:
     note_id = new_id()
     with db() as conn:
         conn.execute(
-            "INSERT INTO notes (id, owner, title, body, color, labels, pinned, archived, created_at, updated_at)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)",
+            "INSERT INTO notes (id, owner, title, body, color, labels, pinned, archived,"
+            " span_w, height_px, created_at, updated_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)",
             (note_id, user, payload.title, payload.body, color,
-             json.dumps(clean_labels(payload.labels)), int(payload.pinned), ts, ts),
+             json.dumps(clean_labels(payload.labels)), int(payload.pinned),
+             clamp_span(payload.span_w), clamp_height(payload.height_px), ts, ts),
         )
         row = conn.execute("SELECT * FROM notes WHERE id = ?", (note_id,)).fetchone()
     return note_row(row)
@@ -412,10 +465,20 @@ def update_note(note_id: str, payload: NotePatch, user: str = User) -> dict[str,
         sets.append("pinned = ?"); args.append(int(payload.pinned))
     if payload.archived is not None:
         sets.append("archived = ?"); args.append(int(payload.archived))
+
+    # Geometry is presentation only. Bumping updated_at for a resize would
+    # reorder the board mid-drag and misreport when the note was last edited.
+    geometry_only = not sets
+    if payload.span_w is not None:
+        sets.append("span_w = ?"); args.append(clamp_span(payload.span_w))
+    if payload.height_px is not None:
+        sets.append("height_px = ?"); args.append(clamp_height(payload.height_px))
+
     if not sets:
         raise HTTPException(status_code=400, detail="nothing to update")
 
-    sets.append("updated_at = ?"); args.append(now_iso())
+    if not geometry_only:
+        sets.append("updated_at = ?"); args.append(now_iso())
     args += [note_id, user]
 
     with db() as conn:

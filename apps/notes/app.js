@@ -72,21 +72,184 @@ function noteHTML(note) {
   return `
     <button class="note-pin ${note.pinned ? "note-pin-on" : ""}" data-pin="${note.id}"
             title="${note.pinned ? "Unpin" : "Pin"}">${note.pinned ? "&#9733;" : "&#9734;"}</button>
-    ${note.title ? `<h3 class="note-title">${escapeHTML(note.title)}</h3>` : ""}
-    <div class="note-body" data-body="${note.id}">${renderBody(note.body)}</div>
-    ${labels ? `<div class="note-labels">${labels}</div>` : ""}
+    <div class="note-content">
+      ${note.title ? `<h3 class="note-title">${escapeHTML(note.title)}</h3>` : ""}
+      <div class="note-body" data-body="${note.id}">${renderBody(note.body)}</div>
+      ${labels ? `<div class="note-labels">${labels}</div>` : ""}
+    </div>
     <div class="note-foot">
       <span class="note-time">${relTime(note.updated_at)}</span>
       <button class="note-act" data-edit="${note.id}">Edit</button>
       <button class="note-act" data-color="${note.id}">Color</button>
       <button class="note-act" data-archive="${note.id}">${note.archived ? "Unarchive" : "Archive"}</button>
       <button class="note-act note-act-danger" data-del="${note.id}">Delete</button>
-    </div>`;
+    </div>
+    <div class="note-resize" data-resize="${note.id}" role="separator"
+         title="Drag to resize &mdash; double-click to fit contents"></div>`;
+}
+
+/* ---------- board geometry ----------
+ *
+ * The board is a CSS grid whose rows are GRID_ROW px tall. A note's height is
+ * whatever its content needs, so we measure it and give it a row span that
+ * covers that height. This reproduces masonry packing while still allowing a
+ * note to span several columns, which a `columns:` layout cannot do.
+ */
+
+const GRID_ROW = 8;   // must match grid-auto-rows in styles.css
+const NOTE_GAP = 18;  // must match .note margin-bottom
+const COL_GAP = 18;   // must match .board column-gap
+const MIN_H = 140;    // keep in step with MIN_NOTE_HEIGHT on the server
+const MAX_H = 1600;   // keep in step with MAX_NOTE_HEIGHT on the server
+const MAX_SPAN = 4;   // keep in step with MAX_SPAN on the server
+
+const boards = () => [el("board-pinned"), el("board-others")].filter(Boolean);
+
+function boardMetrics(board) {
+  const tracks = getComputedStyle(board).gridTemplateColumns.split(" ").filter(Boolean);
+  const first = parseFloat(tracks[0]);
+  return {
+    colCount: Math.max(1, tracks.length),
+    colWidth: first > 0 ? first : board.clientWidth || 250,
+  };
+}
+
+/* Spans go through the shorthand so both grid-*-start and grid-*-end are
+   overwritten together. Setting only the end edge is not enough. */
+function setSpan(node, prop, n) {
+  node.style[prop] = n ? `span ${n}` : "";
+}
+
+/* Batched so all reads happen between the two write passes, not interleaved. */
+function layoutBoard(board) {
+  if (!board) return;
+  const items = Array.from(board.children);
+  if (!items.length) return;
+  const { colCount } = boardMetrics(board);
+
+  for (const node of items) {
+    const want = Number(node.dataset.spanW) || 1;
+    setSpan(node, "gridColumn", Math.min(Math.max(want, 1), colCount, MAX_SPAN));
+    setSpan(node, "gridRow", 0);  // release the span so the note reports its natural height
+  }
+
+  const heights = items.map((node) => node.getBoundingClientRect().height);
+
+  items.forEach((node, i) => {
+    setSpan(node, "gridRow", Math.max(1, Math.ceil((heights[i] + NOTE_GAP) / GRID_ROW)));
+  });
+}
+
+let layoutQueued = false;
+function layoutAll() {
+  if (layoutQueued) return;
+  layoutQueued = true;
+  requestAnimationFrame(() => {
+    layoutQueued = false;
+    boards().forEach(layoutBoard);
+  });
+}
+
+/* Content can change height after render: fonts arrive, highlight.js rewrites a
+   block, a checkbox toggles. Watch the inner wrapper rather than the note so our
+   own span writes cannot retrigger the observer. */
+const contentObserver =
+  typeof ResizeObserver === "function" ? new ResizeObserver(() => layoutAll()) : null;
+
+function applyGeometry(node, note) {
+  node.dataset.id = note.id;
+  node.dataset.spanW = note.span_w || 1;
+  if (note.height_px) {
+    node.classList.add("note-fixed");
+    node.style.height = `${note.height_px}px`;
+  } else {
+    node.classList.remove("note-fixed");
+    node.style.height = "";
+  }
+}
+
+/* ---------- resizing ---------- */
+
+function beginResize(ev, node) {
+  const board = node.parentElement;
+  const id = node.dataset.id;
+  ev.preventDefault();
+  ev.stopPropagation();
+
+  const { colCount, colWidth } = boardMetrics(board);
+  const maxSpan = Math.min(colCount, MAX_SPAN); // the server will not store more
+  const origin = node.getBoundingClientRect();
+  document.body.classList.add("resizing-note");
+  node.classList.add("note-resizing");
+
+  let span = Number(node.dataset.spanW) || 1;
+  let height = node.classList.contains("note-fixed") ? Math.round(origin.height) : 0;
+
+  const onMove = (e) => {
+    const width = e.clientX - origin.left;
+    const tall = e.clientY - origin.top;
+
+    span = Math.min(maxSpan, Math.max(1, Math.round((width + COL_GAP) / (colWidth + COL_GAP))));
+    node.dataset.spanW = span;
+
+    // Dragging up past the minimum is how you get back to "fit the contents".
+    if (tall < MIN_H) {
+      height = 0;
+      node.classList.remove("note-fixed");
+      node.style.height = "";
+    } else {
+      height = Math.min(MAX_H, Math.round(tall / GRID_ROW) * GRID_ROW);
+      node.classList.add("note-fixed");
+      node.style.height = `${height}px`;
+    }
+    layoutAll();
+  };
+
+  const onUp = () => {
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onUp);
+    window.removeEventListener("pointercancel", onUp);
+    document.body.classList.remove("resizing-note");
+    node.classList.remove("note-resizing");
+    saveGeometry(id, span, height);
+  };
+
+  window.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onUp);
+  window.addEventListener("pointercancel", onUp);
+}
+
+/* Patches size without re-rendering: a full render would drop the note's DOM and
+   make the board flicker straight after a drag. */
+async function saveGeometry(id, span, height) {
+  const note = findNote(id);
+  if (note && note.span_w === span && note.height_px === height) return;
+  if (note) {
+    note.span_w = span;
+    note.height_px = height;
+  }
+  try {
+    await API.patch(`/api/notes/${id}`, { span_w: span, height_px: height });
+    flashSaved("Size saved");
+  } catch (e) {
+    toast(e.message, true);
+  }
+}
+
+function resetSize(node) {
+  node.dataset.spanW = 1;
+  node.classList.remove("note-fixed");
+  node.style.height = "";
+  layoutAll();
+  saveGeometry(node.dataset.id, 1, 0);
 }
 
 function render() {
   const pinned = notes.filter((n) => n.pinned);
   const others = notes.filter((n) => !n.pinned);
+
+  // Notes are rebuilt from scratch here, so drop observations on the old nodes.
+  if (contentObserver) contentObserver.disconnect();
 
   const fill = (container, items) => {
     container.innerHTML = "";
@@ -94,7 +257,9 @@ function render() {
       const node = document.createElement("article");
       node.className = `note note-${note.color}`;
       node.innerHTML = noteHTML(note);
+      applyGeometry(node, note);
       container.appendChild(node);
+      if (contentObserver) contentObserver.observe(node.querySelector(".note-content"));
     }
   };
 
@@ -104,6 +269,7 @@ function render() {
   fill(el("board-others"), others);
   enhanceCode(el("board-pinned"));
   enhanceCode(el("board-others"));
+  layoutAll();
 
   const empty = notes.length === 0;
   el("empty-state").hidden = !empty;
@@ -157,6 +323,14 @@ function bindNoteEvents() {
   document.querySelectorAll("[data-color]").forEach((b) =>
     b.addEventListener("click", () => pickColor(b.dataset.color))
   );
+  document.querySelectorAll("[data-resize]").forEach((grip) => {
+    const node = grip.closest(".note");
+    grip.addEventListener("pointerdown", (e) => beginResize(e, node));
+    grip.addEventListener("dblclick", (e) => {
+      e.stopPropagation();
+      resetSize(node);
+    });
+  });
   document.querySelectorAll("[data-body]").forEach((wrap) =>
     wrap.querySelectorAll("[data-check]").forEach((box) =>
       box.addEventListener("click", () => {
@@ -353,6 +527,12 @@ document.addEventListener("keydown", (e) => {
     closeComposer();
   }
 });
+
+/* The column count changes with the viewport, so spans must be re-clamped and
+   row spans recomputed on resize. */
+window.addEventListener("resize", debounce(() => layoutAll(), 120));
+window.addEventListener("load", () => layoutAll());
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => layoutAll());
 
 /* ---------- boot ---------- */
 
