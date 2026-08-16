@@ -228,6 +228,66 @@ kbd {
 .app-toast-show { transform: translateX(-50%) translateY(0); }
 .app-toast-error { border-left-color: var(--danger-2); }
 
+/* Fenced code blocks (shared by notes and flash cards) */
+.code-block {
+  margin: 10px 0;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-2);
+  overflow: hidden;
+  white-space: normal;
+}
+.code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 5px 8px 5px 12px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.18);
+}
+.code-lang {
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 1.1px;
+  color: var(--text-dim);
+}
+.code-copy {
+  font-family: var(--font);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+.code-copy:hover { color: var(--accent); border-color: var(--border); }
+
+.code-block pre {
+  margin: 0;
+  padding: 12px 14px;
+  overflow-x: auto;
+  white-space: pre;
+  tab-size: 4;
+}
+/* Beat the inline-code styling and the highlight theme's own background. */
+.code-block pre code,
+.code-block pre code.hljs {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  font-weight: 400;
+  line-height: 1.6;
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  color: inherit;
+  white-space: pre;
+}
+
 .app-empty {
   text-align: center;
   padding: 60px 20px;

@@ -53,10 +53,102 @@ function escapeHTML(s) {
 }
 
 /* Allows `inline code` and preserves line breaks. */
-function renderText(s) {
+function renderInline(s) {
   return escapeHTML(s)
     .replace(/`([^`]+)`/g, "<code>$1</code>")
     .replace(/\n/g, "<br />");
+}
+
+const renderText = renderInline;
+
+const FENCE_OPEN = /^\s*```(\S*)\s*$/;
+const FENCE_CLOSE = /^\s*```\s*$/;
+
+/**
+ * Splits text into segments so callers can render fenced code blocks
+ * separately from prose. Text segments keep their original line index,
+ * which matters because the notes app addresses checklist lines by index.
+ */
+function parseBlocks(text) {
+  const lines = String(text ?? "").split("\n");
+  const out = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const fence = lines[i].match(FENCE_OPEN);
+    if (fence) {
+      const body = [];
+      let j = i + 1;
+      while (j < lines.length && !FENCE_CLOSE.test(lines[j])) {
+        body.push(lines[j]);
+        j++;
+      }
+      out.push({ type: "code", lang: fence[1] || "", code: body.join("\n") });
+      i = j < lines.length ? j + 1 : j; // an unclosed fence just runs to the end
+    } else {
+      out.push({ type: "text", line: lines[i], index: i });
+      i++;
+    }
+  }
+  return out;
+}
+
+function codeBlockHTML(lang, code) {
+  const safeLang = String(lang || "").replace(/[^a-z0-9+#_-]/gi, "").slice(0, 20);
+  const cls = safeLang ? ` class="language-${safeLang}"` : "";
+  return `<div class="code-block">
+      <div class="code-head">
+        <span class="code-lang">${escapeHTML(safeLang || "code")}</span>
+        <button class="code-copy" type="button" title="Copy to clipboard">Copy</button>
+      </div>
+      <pre><code${cls}>${escapeHTML(code)}</code></pre>
+    </div>`;
+}
+
+/* Prose with ```fenced code blocks```, `inline code` and line breaks. */
+function renderRich(text) {
+  return parseBlocks(text)
+    .map((seg) =>
+      seg.type === "code"
+        ? codeBlockHTML(seg.lang, seg.code)
+        : `<div>${renderInline(seg.line) || "&nbsp;"}</div>`
+    )
+    .join("");
+}
+
+/**
+ * Highlights any code blocks inside `root` and wires their copy buttons.
+ * Safe to call repeatedly; already-processed blocks are skipped.
+ */
+function enhanceCode(root) {
+  if (!root) return;
+
+  root.querySelectorAll("pre code:not([data-hl])").forEach((block) => {
+    if (window.hljs) {
+      try {
+        window.hljs.highlightElement(block);
+      } catch {
+        /* unknown language, or hljs failed: leave it as plain monospace */
+      }
+    }
+    block.dataset.hl = "1";
+  });
+
+  root.querySelectorAll(".code-copy:not([data-bound])").forEach((btn) => {
+    btn.dataset.bound = "1";
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const code = btn.closest(".code-block")?.querySelector("code");
+      if (!code) return;
+      try {
+        await navigator.clipboard.writeText(code.textContent);
+        btn.textContent = "Copied";
+      } catch {
+        btn.textContent = "Press Ctrl+C";
+      }
+      setTimeout(() => (btn.textContent = "Copy"), 1500);
+    });
+  });
 }
 
 /* ---------- toast ---------- */

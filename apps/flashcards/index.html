@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/apps/shared.css" />
+  <link rel="stylesheet" href="/apps/vendor/highlight-theme.min.css" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -68,7 +69,10 @@
           <label class="app-label" for="new-tags">Tags <span class="app-hint">comma separated, optional</span></label>
           <input class="app-input" id="new-tags" placeholder="idioms, lifetime" />
         </div>
-        <p class="app-hint">Wrap text in <code>`backticks`</code> to render it as code. Line breaks are preserved.</p>
+        <p class="app-hint">
+          Wrap text in <code>`backticks`</code> for inline code, or fence a block with
+          <code>```cpp</code> on its own line for a highlighted snippet. Line breaks are preserved.
+        </p>
         <button class="app-btn app-btn-primary" type="submit">Add card</button>
       </form>
 
@@ -125,6 +129,9 @@
   <div id="modal-root"></div>
   <div id="toast" class="app-toast"></div>
 
+  <script src="/apps/vendor/highlight.min.js"></script>
+  <script src="/apps/vendor/lang-tcl.min.js"></script>
+  <script src="/apps/vendor/lang-verilog.min.js"></script>
   <script src="/apps/api.js"></script>
   <script src="app.js"></script>
 </body>

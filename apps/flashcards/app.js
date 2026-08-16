@@ -120,8 +120,8 @@ function renderCardList() {
     row.innerHTML = `
       <span class="card-row-num">${i + 1}</span>
       <div class="card-row-body">
-        <div class="card-row-front">${renderText(card.front)}</div>
-        <div class="card-row-back">${renderText(card.back)}</div>
+        <div class="card-row-front">${renderRich(card.front)}</div>
+        <div class="card-row-back">${renderRich(card.back)}</div>
         ${card.tags.length ? `<div class="card-row-tags">${card.tags.map((t) => `<span class="chip">${escapeHTML(t)}</span>`).join("")}</div>` : ""}
       </div>
       <div class="card-row-actions">
@@ -130,6 +130,8 @@ function renderCardList() {
       </div>`;
     list.appendChild(row);
   });
+
+  enhanceCode(list);
 
   list.querySelectorAll("[data-edit]").forEach((b) =>
     b.addEventListener("click", () => editCard(b.dataset.edit))
@@ -342,13 +344,14 @@ function renderCard() {
   const card = session.queue[0];
   session.revealed = false;
 
-  el("card-front").innerHTML = renderText(card.front);
-  el("card-back").innerHTML = renderText(card.back);
+  el("card-front").innerHTML = renderRich(card.front);
+  el("card-back").innerHTML = renderRich(card.back);
   el("card-back-wrap").hidden = true;
   el("card-divider").hidden = true;
   el("btn-reveal").hidden = false;
   el("grade-row").hidden = true;
   el("card-tags").innerHTML = card.tags.map((t) => `<li>${escapeHTML(t)}</li>`).join("");
+  enhanceCode(el("card"));
 
   el("study-counter").textContent = `${session.done} / ${session.planned} · ${session.queue.length} left`;
   el("progress-fill").style.width = `${(session.done / (session.done + session.queue.length)) * 100}%`;

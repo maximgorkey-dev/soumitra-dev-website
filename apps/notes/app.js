@@ -30,16 +30,17 @@ const reloadSoon = debounce(() => loadNotes().catch((e) => toast(e.message, true
 
 function renderBody(body) {
   if (!body) return "";
-  return body
-    .split("\n")
-    .map((line, i) => {
-      const m = line.match(CHECK_RE);
-      if (!m) return `<div>${renderText(line) || "&nbsp;"}</div>`;
+  return parseBlocks(body)
+    .map((seg) => {
+      if (seg.type === "code") return codeBlockHTML(seg.lang, seg.code);
+
+      const m = seg.line.match(CHECK_RE);
+      if (!m) return `<div>${renderInline(seg.line) || "&nbsp;"}</div>`;
       const done = m[2].toLowerCase() === "x";
       return `
         <div class="check-line">
-          <button class="check-box ${done ? "check-box-on" : ""}" data-check="${i}" aria-label="toggle">${done ? "&#10003;" : ""}</button>
-          <span class="${done ? "check-done" : ""}">${renderText(m[3])}</span>
+          <button class="check-box ${done ? "check-box-on" : ""}" data-check="${seg.index}" aria-label="toggle">${done ? "&#10003;" : ""}</button>
+          <span class="${done ? "check-done" : ""}">${renderInline(m[3])}</span>
         </div>`;
     })
     .join("");
@@ -101,6 +102,8 @@ function render() {
   el("others-heading").hidden = pinned.length === 0 || others.length === 0;
   fill(el("board-pinned"), pinned);
   fill(el("board-others"), others);
+  enhanceCode(el("board-pinned"));
+  enhanceCode(el("board-others"));
 
   const empty = notes.length === 0;
   el("empty-state").hidden = !empty;
@@ -233,9 +236,9 @@ async function editNote(id) {
       {
         name: "body",
         label: "Body",
-        hint: "use - [ ] for checklist items",
+        hint: "- [ ] makes a checklist, ```cpp fences a code block",
         type: "textarea",
-        rows: 12,
+        rows: 14,
         value: note.body,
       },
       { name: "labels", label: "Labels", hint: "comma separated", value: note.labels.join(", ") },

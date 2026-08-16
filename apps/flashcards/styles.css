@@ -77,6 +77,8 @@
 .card-row-body { min-width: 0; }
 .card-row-front { font-weight: 600; margin-bottom: 5px; overflow-wrap: anywhere; }
 .card-row-back { color: var(--text-dim); font-size: 0.93rem; overflow-wrap: anywhere; }
+/* Keep a long snippet from dominating the editor list */
+.card-row .code-block pre { max-height: 200px; }
 .card-row-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
 .card-row-actions { display: flex; flex-direction: column; gap: 7px; }
 .card-row code,
