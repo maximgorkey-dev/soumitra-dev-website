@@ -709,25 +709,42 @@ def delete_card(card_id: str, user: str = User) -> JSONResponse:
 # --------------------------------------------------------------------------
 
 @app.get("/api/decks/{deck_id}/study")
-def study(deck_id: str, user: str = User, limit_new: int = Query(default=20, ge=0, le=200)) -> dict[str, Any]:
+def study(
+    deck_id: str,
+    user: str = User,
+    limit_new: int = Query(default=20, ge=0, le=200),
+    mode: str = Query(default="review", pattern="^(review|cram)$"),
+) -> dict[str, Any]:
+    """
+    review — cards due today, plus a capped number never seen before.
+    cram   — the whole deck regardless of schedule, for free practice. The
+             client does not post reviews for a cram run, so the spacing that
+             `review` depends on is left untouched.
+    """
     today = today_iso()
     with db() as conn:
         deck = owned_deck(conn, user, deck_id)
-        due = conn.execute(
-            """
-            SELECT c.*, r.reps, r.ease, r.interval, r.lapses, r.due
-            FROM cards c JOIN reviews r ON r.card_id = c.id AND r.owner = ?
-            WHERE c.deck_id = ? AND r.due <= ? ORDER BY r.due, c.position
-            """,
-            (user, deck_id, today),
-        ).fetchall()
-        fresh = conn.execute(
-            """
-            SELECT c.* FROM cards c LEFT JOIN reviews r ON r.card_id = c.id AND r.owner = ?
-            WHERE c.deck_id = ? AND r.card_id IS NULL ORDER BY c.position LIMIT ?
-            """,
-            (user, deck_id, limit_new),
-        ).fetchall()
+        if mode == "cram":
+            scheduled = conn.execute(
+                "SELECT * FROM cards WHERE deck_id = ? ORDER BY position", (deck_id,)
+            ).fetchall()
+            unseen: list[sqlite3.Row] = []
+        else:
+            scheduled = conn.execute(
+                """
+                SELECT c.*, r.reps, r.ease, r.interval, r.lapses, r.due
+                FROM cards c JOIN reviews r ON r.card_id = c.id AND r.owner = ?
+                WHERE c.deck_id = ? AND r.due <= ? ORDER BY r.due, c.position
+                """,
+                (user, deck_id, today),
+            ).fetchall()
+            unseen = conn.execute(
+                """
+                SELECT c.* FROM cards c LEFT JOIN reviews r ON r.card_id = c.id AND r.owner = ?
+                WHERE c.deck_id = ? AND r.card_id IS NULL ORDER BY c.position LIMIT ?
+                """,
+                (user, deck_id, limit_new),
+            ).fetchall()
 
     def pack(row: sqlite3.Row, seen: bool) -> dict[str, Any]:
         out = card_row(row)
@@ -736,7 +753,8 @@ def study(deck_id: str, user: str = User, limit_new: int = Query(default=20, ge=
 
     return {
         "deck": {"id": deck["id"], "name": deck["name"]},
-        "cards": [pack(r, True) for r in due] + [pack(r, False) for r in fresh],
+        "mode": mode,
+        "cards": [pack(r, True) for r in scheduled] + [pack(r, False) for r in unseen],
     }
 
 

@@ -94,6 +94,16 @@
 /* Study view */
 .study-top { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
 .study-deck-name { font-weight: 600; }
+.study-mode {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--accent-2);
+  border: 1px solid var(--accent-2);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
 .study-counter { margin-left: auto; font-family: var(--mono); font-size: 0.8rem; color: var(--text-dim); }
 .progress-track { height: 5px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin-bottom: 26px; }
 .progress-fill {

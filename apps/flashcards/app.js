@@ -6,6 +6,7 @@ let decks = [];
 let manageDeck = null;
 let manageCards = [];
 let session = null;
+let doneAction = null;
 
 /* ---------- views ---------- */
 
@@ -53,6 +54,8 @@ function renderDeckList() {
         <button class="app-btn app-btn-primary app-btn-sm" data-study="${deck.id}" ${studyable ? "" : "disabled"}>
           ${studyable ? "Study" : c.total ? "All caught up" : "No cards yet"}
         </button>
+        ${c.total ? `<button class="app-btn app-btn-ghost app-btn-sm" data-cram="${deck.id}"
+             title="Run the whole deck without affecting your schedule">Practice</button>` : ""}
         <button class="app-btn app-btn-ghost app-btn-sm" data-manage="${deck.id}">Edit cards</button>
       </div>`;
     list.appendChild(node);
@@ -60,6 +63,9 @@ function renderDeckList() {
 
   list.querySelectorAll("[data-study]").forEach((b) =>
     b.addEventListener("click", () => startSession(b.dataset.study))
+  );
+  list.querySelectorAll("[data-cram]").forEach((b) =>
+    b.addEventListener("click", () => startSession(b.dataset.cram, true))
   );
   list.querySelectorAll("[data-manage]").forEach((b) =>
     b.addEventListener("click", () => openManage(b.dataset.manage))
@@ -319,19 +325,21 @@ function shuffle(arr) {
   return arr;
 }
 
-async function startSession(deckId) {
+async function startSession(deckId, cram = false) {
   try {
-    const data = await API.get(`/api/decks/${deckId}/study?limit_new=${NEW_PER_SESSION}`);
+    const query = cram ? "mode=cram" : `limit_new=${NEW_PER_SESSION}`;
+    const data = await API.get(`/api/decks/${deckId}/study?${query}`);
     const due = data.cards.filter((c) => c.seen);
     const fresh = data.cards.filter((c) => !c.seen);
     const queue = shuffle(due).concat(shuffle(fresh));
     if (!queue.length) {
-      toast("Nothing due in this deck right now");
+      toast(cram ? "This deck has no cards yet" : "Nothing due in this deck right now");
       return;
     }
 
-    session = { deck: data.deck, queue, done: 0, planned: queue.length, again: 0, revealed: false };
+    session = { deck: data.deck, cram, queue, done: 0, planned: queue.length, again: 0, revealed: false };
     el("study-deck-name").textContent = data.deck.name;
+    el("study-mode").hidden = !cram;
     showView("study");
     renderCard();
     window.scrollTo({ top: 0 });
@@ -368,6 +376,7 @@ function reveal() {
 
 async function grade(g) {
   if (!session || !session.revealed) return;
+  const { cram } = session;
   const card = session.queue.shift();
   session.revealed = false;
 
@@ -381,6 +390,10 @@ async function grade(g) {
   if (session.queue.length) renderCard();
   else finishSession();
 
+  // A practice run records nothing on purpose. Posting here would push every
+  // interval further out and quietly wreck the spacing that review mode needs.
+  if (cram) return;
+
   try {
     await API.post("/api/reviews", { card_id: card.id, grade: g });
   } catch (err) {
@@ -389,12 +402,27 @@ async function grade(g) {
 }
 
 async function finishSession() {
-  const { done, again, deck } = session;
-  el("done-summary").textContent =
-    `You reviewed ${done} card${done === 1 ? "" : "s"} in "${deck.name}"` +
-    (again ? `, with ${again} marked Again.` : ".");
+  const { done, again, deck, cram } = session;
+  el("done-summary").textContent = cram
+    ? `You practised ${done} card${done === 1 ? "" : "s"} in "${deck.name}". Nothing was written to your review schedule.`
+    : `You reviewed ${done} card${done === 1 ? "" : "s"} in "${deck.name}"` +
+      (again ? `, with ${again} marked Again.` : ".");
   showView("done");
   await refreshDecks();
+
+  // Only offer something that can actually run. After a review session the deck
+  // is usually caught up, so a plain "Study again" would just fail with a toast.
+  const latest = decks.find((d) => d.id === deck.id);
+  const remaining = latest ? latest.counts.due + latest.counts.new : 0;
+  const btn = el("btn-again-deck");
+
+  if (!cram && remaining > 0) {
+    doneAction = { deckId: deck.id, cram: false };
+    btn.textContent = `Keep studying (${remaining} left)`;
+  } else {
+    doneAction = { deckId: deck.id, cram: true };
+    btn.textContent = cram ? "Practice again" : "Practice this deck";
+  }
 }
 
 function exitSession() {
@@ -417,9 +445,9 @@ el("btn-reveal").addEventListener("click", reveal);
 el("btn-exit").addEventListener("click", exitSession);
 el("btn-back-decks").addEventListener("click", exitSession);
 el("btn-again-deck").addEventListener("click", () => {
-  const id = session?.deck.id;
+  const next = doneAction;
   session = null;
-  if (id) startSession(id);
+  if (next) startSession(next.deckId, next.cram);
 });
 document.querySelectorAll("[data-grade]").forEach((b) =>
   b.addEventListener("click", () => grade(b.dataset.grade))
