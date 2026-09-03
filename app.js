@@ -37,10 +37,16 @@
     });
   }
 
-  // Render projects from the PROJECTS array (projects.js)
+  // Render projects from the PROJECTS array (projects.js).
+  //
+  // Read through the bare name, not window.PROJECTS: projects.js declares it
+  // with const, and const at the top level of a classic script goes into the
+  // global lexical scope without ever becoming a property of window. The
+  // typeof guard is what keeps a missing projects.js from throwing.
   const grid = $("#projects-grid");
   if (grid) {
-    const projects = Array.isArray(window.PROJECTS) ? window.PROJECTS : [];
+    const declared = typeof PROJECTS !== "undefined" ? PROJECTS : null;
+    const projects = Array.isArray(declared) ? declared : [];
     if (!projects.length) {
       grid.innerHTML = '<p class="projects-empty">Projects coming soon.</p>';
     } else {

@@ -148,6 +148,11 @@ server {
 
     # ---- public site ----
     location / {
+        # Same revalidation policy as /apps/ and /eda/. Without it the site is
+        # edited in place with no version in any filename, so a browser holding
+        # a heuristically cached app.js keeps rendering the old page — which is
+        # exactly how the projects grid stayed empty after it was populated.
+        add_header Cache-Control "no-cache" always;
         try_files $uri $uri/ =404;
     }
 
