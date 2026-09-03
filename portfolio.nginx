@@ -1,0 +1,174 @@
+server {
+    server_name soumitra.dev www.soumitra.dev;
+    root /var/www/portfolio;
+    index index.html;
+
+    # ---- ACME challenges: must precede the dotfile deny below ----
+    location ^~ /.well-known/ {
+        allow all;
+    }
+
+    # ---- oauth2-proxy browser-facing endpoints ----
+    location /oauth2/ {
+        proxy_pass       http://127.0.0.1:4180;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host  $host;
+        proxy_set_header X-Forwarded-Uri   $request_uri;
+    }
+
+    # ---- internal auth subrequest: any allow-listed address ----
+    location = /oauth2/auth {
+        internal;
+        proxy_pass       http://127.0.0.1:4180;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Uri   $request_uri;
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length "";
+    }
+
+    # ---- internal auth subrequest: owner only ----
+    location = /oauth2/auth-ops {
+        internal;
+        proxy_pass       http://127.0.0.1:4180/oauth2/auth?allowed_emails=majumder.soumitra%40gmail.com;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Uri   $request_uri;
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length "";
+    }
+
+    # Authenticated but not authorised: look identical to a missing page.
+    location @deny404 {
+        return 404;
+    }
+
+    # Not signed in, told in JSON rather than by redirect. Used by endpoints
+    # that public pages call speculatively: bouncing an anonymous visitor to
+    # Google because a page asked whether saving was available would be wrong.
+    location @json401 {
+        default_type application/json;
+        return 401 '{"detail":"not signed in"}';
+    }
+
+    # ---- private visitor dashboard: owner only, unlinked anywhere ----
+    location /_ops/ {
+        auth_request /oauth2/auth-ops;
+        error_page 401 = /oauth2/start?rd=$request_uri;
+        error_page 403 = @deny404;
+
+        root /var/lib/site-stats/pubroot;
+        index report.html;
+        autoindex off;
+
+        add_header X-Robots-Tag "noindex, nofollow, noarchive, nosnippet" always;
+        add_header Cache-Control "no-store, max-age=0" always;
+    }
+
+    # ---- saved designs for the public EDA app ----
+    # Longer prefix than /api/, so this wins regardless of ordering. Identical
+    # to /api/ except that failing auth returns JSON instead of a redirect.
+    location ^~ /api/designs {
+        auth_request /oauth2/auth;
+        auth_request_set $auth_email $upstream_http_x_auth_request_email;
+        error_page 401 = @json401;
+        error_page 403 = @json401;
+
+        proxy_pass         http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Auth-Email      $auth_email;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+
+        add_header X-Robots-Tag "noindex, nofollow" always;
+        add_header Cache-Control "no-store, max-age=0" always;
+    }
+
+    # ---- API for the authenticated apps ----
+    location /api/ {
+        auth_request /oauth2/auth;
+        auth_request_set $auth_email $upstream_http_x_auth_request_email;
+        error_page 401 = /oauth2/start?rd=$request_uri;
+        error_page 403 = @deny404;
+
+        proxy_pass         http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Auth-Email      $auth_email;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+
+        add_header X-Robots-Tag "noindex, nofollow" always;
+    }
+
+    # ---- backend source lives in the repo but must never be served ----
+    location ^~ /server/ {
+        deny all;
+    }
+
+    # ---- authenticated apps area ----
+    location /apps/ {
+        auth_request /oauth2/auth;
+        error_page 401 = /oauth2/start?rd=$request_uri;
+        error_page 403 = @deny404;
+
+        add_header X-Robots-Tag "noindex, nofollow" always;
+        # Force revalidation. With no Cache-Control at all, browsers apply
+        # heuristic freshness and keep running stale app code after a deploy.
+        # ETag/Last-Modified make each revalidation a cheap 304.
+        add_header Cache-Control "no-cache" always;
+        try_files $uri $uri/ =404;
+    }
+
+    # ---- shared front-end assets, public ----
+    # Lives outside /apps/ because the EDA app is public and would otherwise be
+    # asked to authenticate just to fetch a stylesheet.
+    location /assets/ {
+        add_header Cache-Control "no-cache" always;
+        try_files $uri =404;
+    }
+
+    # ---- public EDA flow demonstrator ----
+    # Indexable on purpose: it is a showcase, and it needs no account to run.
+    location /eda/ {
+        add_header Cache-Control "no-cache" always;
+        try_files $uri $uri/ =404;
+    }
+
+    # ---- deny dotfiles (.git and friends) ----
+    location ~ /\. {
+        deny all;
+    }
+
+    # ---- public site ----
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    listen [::]:443 ssl ipv6only=on; # managed by Certbot
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/soumitra.dev/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/soumitra.dev/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+}
+
+server {
+    if ($host = www.soumitra.dev) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+    if ($host = soumitra.dev) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+    listen 80;
+    listen [::]:80;
+    server_name soumitra.dev www.soumitra.dev;
+    return 404; # managed by Certbot
+}

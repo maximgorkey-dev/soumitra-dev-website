@@ -1,4 +1,4 @@
-/* Notes app. Design tokens and common components live in /apps/shared.css */
+/* Notes app. Design tokens and common components live in /assets/shared.css */
 
 .note-red    { --note: #f85149; }
 .note-orange { --note: #f0883e; }

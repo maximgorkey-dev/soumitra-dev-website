@@ -14,27 +14,19 @@
  */
 const PROJECTS = [
   {
+    title: "Interactive EDA flow",
+    date: "2026",
+    desc:
+      "A digital place-and-route demonstrator that runs entirely in the browser. Build a gate-level netlist, size a floorplan, then watch an analytic global placer trade wirelength against density and an Abacus legaliser snap the result onto the row and site grid. The algorithms are real, just small.",
+    tags: ["Physical Design", "Placement", "JavaScript", "Canvas", "Web Workers"],
+    links: [{ label: "Open the demo", href: "/eda/" }],
+  },
+  {
     title: "This website (soumitra.dev)",
     date: "2026",
     desc:
       "A hand-built portfolio served from a Google Cloud VM: nginx, a Let's Encrypt TLS certificate, and static HTML/CSS/JS — no framework, no build step.",
     tags: ["HTML", "CSS", "JavaScript", "nginx", "GCP"],
     links: [{ label: "Live", href: "https://soumitra.dev" }],
-  },
-  {
-    title: "Project title goes here",
-    date: "2026",
-    desc:
-      "Replace this placeholder with a short description of a project. Delete this whole block once you add real ones.",
-    tags: ["C++", "example"],
-    links: [],
-  },
-  {
-    title: "Another example",
-    date: "2026",
-    desc:
-      "Duplicate a block like this for each new project you upload. Add links for source code or a write-up.",
-    tags: ["Python"],
-    links: [{ label: "Source", href: "#" }],
   },
 ];

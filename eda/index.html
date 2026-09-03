@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Interactive EDA flow — soumitra.dev</title>
+  <meta name="description" content="An interactive digital place-and-route demonstrator that runs entirely in the browser: build a gate-level netlist, floorplan it, and watch an analytic placer and an Abacus legaliser do real work." />
+  <link rel="canonical" href="https://soumitra.dev/eda/" />
+  <meta property="og:title" content="Interactive EDA flow" />
+  <meta property="og:description" content="Build a gate-level netlist and run it through floorplanning, analytic global placement and legalisation, in the browser." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://soumitra.dev/eda/" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/shared.css" />
+  <link rel="stylesheet" href="/eda/styles.css" />
+</head>
+<body class="eda-body">
+  <header class="app-header">
+    <div class="eda-header-inner">
+      <a class="app-brand" href="/">
+        <span class="app-brand-mark">SM</span>
+        <span>soumitra.dev</span>
+      </a>
+      <span class="eda-title-chip">Interactive EDA flow</span>
+      <div class="app-user">
+        <span id="account" class="app-user-email"></span>
+        <button class="app-btn app-btn-ghost app-btn-sm" id="btn-share" type="button">Share link</button>
+      </div>
+    </div>
+  </header>
+
+  <p class="eda-narrow-note">
+    This is a layout viewer, and it wants a wide screen. It will work here, but a desktop is a much better time.
+  </p>
+
+  <main class="eda-shell">
+    <!-- ------------------------------------------------ left: inputs -->
+    <aside class="eda-side eda-left">
+      <section class="panel">
+        <h2 class="panel-title">Design</h2>
+        <div class="app-field">
+          <label class="app-label" for="preset">Starting point</label>
+          <select class="app-select" id="preset"></select>
+        </div>
+        <p class="panel-note" id="preset-blurb"></p>
+        <p class="panel-note panel-note-dim" id="design-source"></p>
+      </section>
+
+      <section class="panel">
+        <h2 class="panel-title">Constraints</h2>
+
+        <div class="slider-row">
+          <label class="app-label" for="util">Target utilisation</label>
+          <output class="slider-value" id="util-out">70%</output>
+        </div>
+        <input class="slider" type="range" id="util" min="25" max="90" step="1" value="70" />
+        <p class="panel-note">How densely the core is packed. Higher wastes less silicon and gives the placer less room.</p>
+
+        <div class="slider-row">
+          <label class="app-label" for="aspect">Core aspect ratio</label>
+          <output class="slider-value" id="aspect-out">1.00</output>
+        </div>
+        <input class="slider" type="range" id="aspect" min="40" max="250" step="5" value="100" />
+        <p class="panel-note">Core width divided by height, rounded to whole rows and sites.</p>
+
+        <button class="app-btn app-btn-ghost app-btn-sm app-btn-wide" id="btn-apply-constraints" type="button">
+          Apply and re-run
+        </button>
+      </section>
+
+      <section class="panel">
+        <h2 class="panel-title">Run</h2>
+        <div class="btn-row">
+          <button class="app-btn app-btn-primary" id="btn-run" type="button">Run flow</button>
+          <button class="app-btn app-btn-ghost" id="btn-step" type="button">Step</button>
+        </div>
+        <div class="btn-row">
+          <button class="app-btn app-btn-ghost app-btn-sm" id="btn-reset" type="button">Reset</button>
+          <button class="app-btn app-btn-ghost app-btn-sm" id="btn-cancel" type="button" disabled>Stop</button>
+        </div>
+        <div class="app-field">
+          <label class="app-label" for="speed">Speed</label>
+          <select class="app-select" id="speed">
+            <option value="watch">Watch — animate every iteration</option>
+            <option value="fast" selected>Fast</option>
+            <option value="instant">Instant</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="panel">
+        <details id="netlist-editor">
+          <summary class="panel-title panel-summary">Edit the netlist</summary>
+          <p class="panel-note">
+            One cell per line: <code>TYPE instance PIN=net ...</code>. Declare boundary pins with
+            <code>input</code> and <code>output</code>. Available cells:
+            <span class="mono-dim" id="cell-list"></span>
+          </p>
+          <textarea class="app-textarea code-input" id="netlist-text" rows="14" spellcheck="false"></textarea>
+          <div class="btn-row">
+            <button class="app-btn app-btn-ghost app-btn-sm" id="btn-apply-netlist" type="button">Apply netlist</button>
+            <button class="app-btn app-btn-ghost app-btn-sm" id="btn-revert-netlist" type="button">Revert</button>
+          </div>
+          <div class="parse-errors" id="parse-errors" hidden></div>
+        </details>
+      </section>
+
+      <section class="panel">
+        <h2 class="panel-title">Saved designs</h2>
+        <div id="saved-list" class="saved-list"></div>
+        <div class="btn-row">
+          <button class="app-btn app-btn-ghost app-btn-sm" id="btn-save" type="button">Save current</button>
+        </div>
+        <p class="panel-note" id="save-note"></p>
+      </section>
+    </aside>
+
+    <!-- ------------------------------------------------ centre: layout -->
+    <section class="eda-center">
+      <div class="stage-bar" id="stage-bar"></div>
+
+      <div class="canvas-wrap">
+        <canvas id="layout"></canvas>
+        <div class="view-hint" id="view-hint">Scroll to zoom, drag to pan, click a cell to light up its nets</div>
+      </div>
+
+      <div class="view-bar">
+        <div class="view-toggles">
+          <button class="chip chip-btn chip-active" data-toggle="flylines" type="button">Flylines</button>
+          <button class="chip chip-btn" data-toggle="density" type="button">Density</button>
+          <button class="chip chip-btn chip-active" data-toggle="rows" type="button">Rows</button>
+          <button class="chip chip-btn chip-active" data-toggle="pins" type="button">Pins</button>
+          <button class="chip chip-btn chip-active" data-toggle="labels" type="button">Labels</button>
+        </div>
+        <div class="view-actions">
+          <span class="readout" id="readout"></span>
+          <button class="app-btn app-btn-ghost app-btn-icon" id="btn-zoom-out" type="button" aria-label="Zoom out">&minus;</button>
+          <button class="app-btn app-btn-ghost app-btn-icon" id="btn-zoom-in" type="button" aria-label="Zoom in">+</button>
+          <button class="app-btn app-btn-ghost app-btn-sm" id="btn-fit" type="button">Fit</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ------------------------------------------------ right: results -->
+    <aside class="eda-side eda-right">
+      <section class="panel">
+        <h2 class="panel-title">Metrics</h2>
+        <div id="metrics" class="metrics"></div>
+      </section>
+
+      <section class="panel">
+        <h2 class="panel-title">Convergence</h2>
+        <canvas id="spark" class="spark"></canvas>
+        <p class="panel-note spark-legend">
+          <span class="key key-wl"></span> wirelength
+          <span class="key key-of"></span> overflow
+          &mdash; each on its own scale, against placement iteration.
+        </p>
+      </section>
+
+      <section class="panel panel-grow">
+        <h2 class="panel-title">
+          Log
+          <button class="panel-action" id="btn-clear-log" type="button">clear</button>
+        </h2>
+        <div id="log" class="log"></div>
+      </section>
+    </aside>
+  </main>
+
+  <div class="explain" id="explain" hidden></div>
+  <div class="app-toast" id="toast"></div>
+  <div id="modal-root"></div>
+
+  <script type="module" src="/eda/main.js"></script>
+</body>
+</html>

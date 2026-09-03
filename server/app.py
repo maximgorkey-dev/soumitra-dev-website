@@ -30,6 +30,8 @@ NOTE_COLORS = {"default", "red", "orange", "yellow", "green", "teal", "blue", "p
 MAX_SPAN = 4
 MIN_NOTE_HEIGHT = 140
 MAX_NOTE_HEIGHT = 1600
+MAX_DESIGNS = 100
+MAX_DESIGN_BYTES = 400_000
 
 app = FastAPI(title="soumitra.dev apps API", docs_url=None, redoc_url=None, openapi_url=None)
 
@@ -95,6 +97,19 @@ CREATE TABLE IF NOT EXISTS reviews (
   PRIMARY KEY (owner, card_id)
 );
 CREATE INDEX IF NOT EXISTS idx_reviews_due ON reviews (owner, due);
+
+-- Saved designs for the public EDA flow app. That app works fully without an
+-- account, so this table only ever holds designs from someone who chose to
+-- sign in and press Save.
+CREATE TABLE IF NOT EXISTS designs (
+  id TEXT PRIMARY KEY,
+  owner TEXT NOT NULL,
+  name TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_designs_owner ON designs (owner, updated_at DESC);
 """
 
 
@@ -384,6 +399,16 @@ class BulkIn(BaseModel):
 class ReviewIn(BaseModel):
     card_id: str
     grade: str
+
+
+class DesignIn(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    payload: dict[str, Any]
+
+
+class DesignPatch(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    payload: dict[str, Any] | None = None
 
 
 # --------------------------------------------------------------------------
@@ -780,6 +805,111 @@ def record_review(payload: ReviewIn, user: str = User) -> dict[str, Any]:
              state["lapses"], state["due"], now_iso()),
         )
     return state
+
+
+# --------------------------------------------------------------------------
+# saved designs (public EDA flow app)
+# --------------------------------------------------------------------------
+
+def design_payload(raw: str) -> dict[str, Any]:
+    try:
+        val = json.loads(raw)
+    except ValueError:
+        raise HTTPException(status_code=500, detail="stored design is unreadable")
+    return val if isinstance(val, dict) else {}
+
+
+def dump_payload(payload: dict[str, Any]) -> str:
+    raw = json.dumps(payload, separators=(",", ":"))
+    if len(raw.encode("utf-8")) > MAX_DESIGN_BYTES:
+        raise HTTPException(status_code=413, detail="design is too large to save")
+    return raw
+
+
+@app.get("/api/designs")
+def list_designs(user: str = User) -> dict[str, Any]:
+    """
+    Doubles as the sign-in probe for the EDA app, which is served publicly and
+    needs to know whether saving is available without bouncing an anonymous
+    visitor to Google. Nginx answers this path with a JSON 401 instead of the
+    usual redirect, and the client reads that as "anonymous, use local storage".
+
+    Deliberately does not call ensure_seeded: merely opening a public page
+    should not conjure a set of starter flash-card decks.
+    """
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT id, name, created_at, updated_at FROM designs"
+            " WHERE owner = ? ORDER BY updated_at DESC",
+            (user,),
+        ).fetchall()
+    return {"email": user, "designs": [dict(r) for r in rows]}
+
+
+@app.post("/api/designs", status_code=201)
+def create_design(payload: DesignIn, user: str = User) -> dict[str, Any]:
+    raw = dump_payload(payload.payload)
+    ts = now_iso()
+    design_id = new_id()
+    with db() as conn:
+        held = conn.execute("SELECT COUNT(*) AS n FROM designs WHERE owner = ?", (user,)).fetchone()["n"]
+        if held >= MAX_DESIGNS:
+            raise HTTPException(status_code=409, detail=f"limit of {MAX_DESIGNS} saved designs reached")
+        conn.execute(
+            "INSERT INTO designs (id, owner, name, payload, created_at, updated_at)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (design_id, user, payload.name, raw, ts, ts),
+        )
+    return {"id": design_id, "name": payload.name, "created_at": ts, "updated_at": ts}
+
+
+@app.get("/api/designs/{design_id}")
+def get_design(design_id: str, user: str = User) -> dict[str, Any]:
+    with db() as conn:
+        row = conn.execute(
+            "SELECT * FROM designs WHERE id = ? AND owner = ?", (design_id, user)
+        ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="design not found")
+    return {
+        "id": row["id"],
+        "name": row["name"],
+        "payload": design_payload(row["payload"]),
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+    }
+
+
+@app.patch("/api/designs/{design_id}")
+def update_design(design_id: str, payload: DesignPatch, user: str = User) -> dict[str, Any]:
+    sets: list[str] = []
+    args: list[Any] = []
+    if payload.name is not None:
+        sets.append("name = ?"); args.append(payload.name)
+    if payload.payload is not None:
+        sets.append("payload = ?"); args.append(dump_payload(payload.payload))
+    if not sets:
+        raise HTTPException(status_code=400, detail="nothing to update")
+
+    ts = now_iso()
+    sets.append("updated_at = ?"); args.append(ts)
+    args += [design_id, user]
+
+    with db() as conn:
+        cur = conn.execute(f"UPDATE designs SET {', '.join(sets)} WHERE id = ? AND owner = ?", args)
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="design not found")
+        row = conn.execute("SELECT id, name, created_at, updated_at FROM designs WHERE id = ?", (design_id,)).fetchone()
+    return dict(row)
+
+
+@app.delete("/api/designs/{design_id}", status_code=204)
+def delete_design(design_id: str, user: str = User) -> JSONResponse:
+    with db() as conn:
+        cur = conn.execute("DELETE FROM designs WHERE id = ? AND owner = ?", (design_id, user))
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="design not found")
+    return JSONResponse(status_code=204, content=None)
 
 
 @app.get("/api/health")
