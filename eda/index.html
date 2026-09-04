@@ -26,6 +26,7 @@
       <span class="eda-title-chip">Interactive EDA flow</span>
       <div class="app-user">
         <span id="account" class="app-user-email"></span>
+        <a class="app-btn app-btn-ghost app-btn-sm" href="/eda/guide/">Primer</a>
         <button class="app-btn app-btn-ghost app-btn-sm" id="btn-share" type="button">Share link</button>
       </div>
     </div>
@@ -74,20 +75,28 @@
         <h2 class="panel-title">Run</h2>
         <div class="btn-row">
           <button class="app-btn app-btn-primary" id="btn-run" type="button">Run flow</button>
-          <button class="app-btn app-btn-ghost" id="btn-step" type="button">Step</button>
+          <button class="app-btn app-btn-ghost" id="btn-step" type="button">Step stage</button>
+        </div>
+        <div class="btn-row">
+          <button class="app-btn app-btn-ghost app-btn-sm" id="btn-pause" type="button" disabled>Pause</button>
+          <button class="app-btn app-btn-ghost app-btn-sm" id="btn-tick" type="button" disabled
+                  title="Advance one solver iteration">+1 iteration</button>
         </div>
         <div class="btn-row">
           <button class="app-btn app-btn-ghost app-btn-sm" id="btn-reset" type="button">Reset</button>
           <button class="app-btn app-btn-ghost app-btn-sm" id="btn-cancel" type="button" disabled>Stop</button>
         </div>
-        <div class="app-field">
-          <label class="app-label" for="speed">Speed</label>
-          <select class="app-select" id="speed">
-            <option value="watch">Watch — animate every iteration</option>
-            <option value="fast" selected>Fast</option>
-            <option value="instant">Instant</option>
-          </select>
+
+        <div class="slider-row">
+          <label class="app-label" for="speed">Animation speed</label>
+          <output class="slider-value" id="speed-out">Fast</output>
         </div>
+        <input class="slider" type="range" id="speed" min="0" max="6" step="1" value="5" />
+        <p class="panel-note">
+          Takes effect immediately, mid-run included. Slow it down and watch wirelength climb while density
+          overflow falls — that trade is the whole of global placement, and at full speed it is over before
+          you see it.
+        </p>
       </section>
 
       <section class="panel">
@@ -120,6 +129,18 @@
     <!-- ------------------------------------------------ centre: layout -->
     <section class="eda-center">
       <div class="stage-bar" id="stage-bar"></div>
+
+      <!-- What the running stage is trying to achieve, and how it is doing.
+           Rendered with its idle text in the markup rather than filled in by
+           script, so it takes up its space on the very first paint and never
+           shifts the canvas underneath it. -->
+      <div class="focus" id="focus">
+        <div class="focus-text">
+          <span class="focus-stage">Idle</span>
+          <span class="focus-goal">Press Run to walk the design through the flow.</span>
+        </div>
+        <div class="focus-gauges"></div>
+      </div>
 
       <div class="canvas-wrap">
         <canvas id="layout"></canvas>

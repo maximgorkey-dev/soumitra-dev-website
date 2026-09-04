@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>How a chip gets laid out — a primer on the EDA flow — soumitra.dev</title>
+  <meta name="description" content="A primer on the digital implementation flow: synthesis, floorplanning, placement, legalisation, clock tree synthesis, routing and static timing analysis — what each stage optimises, what constrains it, and how it goes wrong." />
+  <link rel="canonical" href="https://soumitra.dev/eda/guide/" />
+  <meta property="og:title" content="How a chip gets laid out" />
+  <meta property="og:description" content="What each stage of the digital implementation flow optimises, what constrains it, and how it goes wrong." />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://soumitra.dev/eda/guide/" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/shared.css" />
+  <link rel="stylesheet" href="/eda/guide/styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <a class="app-brand" href="/">
+        <span class="app-brand-mark">SM</span>
+        <span>soumitra.dev</span>
+      </a>
+      <div class="app-user">
+        <a class="app-btn app-btn-primary app-btn-sm" href="/eda/">Open the demo</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="guide">
+    <!-- ------------------------------------------------------- hero -->
+    <section class="guide-hero">
+      <p class="guide-kicker">EDA primer</p>
+      <h1>How a chip gets laid out</h1>
+      <p class="guide-lead">
+        A digital chip begins as a description of behaviour and ends as polygons on a few dozen mask layers.
+        Everything in between is one long, staged negotiation between what the designer asked for and what
+        physics will allow. This is a tour of those stages: what each one is actually trying to achieve, which
+        number it is minimising, what it is not allowed to break, and the characteristic way each one fails.
+      </p>
+      <p class="guide-lead">
+        The <a href="/eda/">interactive demo</a> runs four of these stages for real, on a small design, in your
+        browser. The rest are explained here because a flow described only as far as someone got round to
+        implementing it is a misleading picture of the flow.
+      </p>
+    </section>
+
+    <!-- ------------------------------------------------------- the chain -->
+    <nav class="flow-strip" aria-label="Stages of the flow">
+      <a class="flow-chip" href="#synthesis"><span>Synthesis</span><em>explained</em></a>
+      <a class="flow-chip flow-live" href="#netlist"><span>Netlist</span><em>runs</em></a>
+      <a class="flow-chip flow-live" href="#floorplan"><span>Floorplan</span><em>runs</em></a>
+      <a class="flow-chip flow-live" href="#place"><span>Global place</span><em>runs</em></a>
+      <a class="flow-chip flow-live" href="#legalize"><span>Legalise</span><em>runs</em></a>
+      <a class="flow-chip" href="#cts"><span>Clock tree</span><em>explained</em></a>
+      <a class="flow-chip" href="#groute"><span>Global route</span><em>explained</em></a>
+      <a class="flow-chip" href="#droute"><span>Detail route</span><em>explained</em></a>
+      <a class="flow-chip" href="#sta"><span>Timing</span><em>explained</em></a>
+      <a class="flow-chip" href="#signoff"><span>Signoff</span><em>explained</em></a>
+    </nav>
+
+    <!-- ------------------------------------------------------- intro -->
+    <section class="guide-section" id="intro">
+      <div class="guide-head"><h2>Why it is a pipeline at all</h2></div>
+
+      <p>
+        Stated in full, the problem is this: given a few hundred thousand logic cells and the connections
+        between them, choose a position for every cell and a path for every wire, such that every signal
+        arrives within its clock period, no wire violates any of a few thousand manufacturing rules, the whole
+        thing fits in as little silicon as possible, and it does all of that across the full spread of
+        temperature, supply voltage and manufacturing variation the part will be sold into.
+      </p>
+      <p>
+        Nobody solves that. Each piece of it in isolation is already NP-hard, the pieces interact, and the
+        instances are enormous. So the industry does the only tractable thing: it decomposes. Each stage fixes
+        some of the degrees of freedom, optimises what it can still move, and hands a smaller problem to the
+        next one. Synthesis fixes what the gates are. Floorplanning fixes how much room there is. Placement
+        fixes where the gates sit. Routing fixes where the wires go.
+      </p>
+      <p>
+        Decomposition is what makes the flow possible and it is also the source of nearly every difficulty in
+        it. A stage that has fixed something cannot un-fix it, and a stage cannot see the consequences of its
+        own decisions, because those live downstream. Placement minimises an estimate of wirelength, since the
+        wires do not exist yet. Synthesis meets timing against an estimate of wire delay, since it has no
+        geometry at all. Every stage is optimising a proxy, and each proxy is a little wrong.
+      </p>
+
+      <div class="callout">
+        <h3>The consequence: the flow is a loop</h3>
+        <p>
+          Drawn as a line it looks like a conveyor belt. In practice the arrows point backwards more often than
+          anyone would like. Routing discovers that a region is too congested to wire, and the fix is not in
+          routing — it is a placement that spread that region out, or a floorplan that gave it more area. Timing
+          analysis after routing finds a path that closed on estimates and does not close on extracted
+          parasitics, and the fix is a resynthesis of that path. A real project spends far more time going
+          round this loop than it does making the first pass forward.
+        </p>
+      </div>
+    </section>
+
+    <!-- ------------------------------------------------------- synthesis -->
+    <section class="guide-section" id="synthesis">
+      <div class="guide-head">
+        <h2>Synthesis</h2>
+        <span class="badge">not run in the demo</span>
+      </div>
+
+      <p>
+        Synthesis compiles register-transfer-level code — Verilog or VHDL describing registers and the logic
+        between them — into a netlist of real cells from a real library. It happens in three broad moves.
+        First elaboration, which turns the language into generic boolean logic and generic registers. Then
+        technology-independent optimisation, which restructures that logic: propagating constants, sharing
+        common subexpressions, collapsing and re-decomposing boolean networks, deciding that two adders in
+        mutually exclusive branches can be one adder and a multiplexer. Finally technology mapping, which
+        covers the optimised boolean network with cells that actually exist, choosing drive strengths as it
+        goes.
+      </p>
+      <p>
+        The output is the thing this app takes as input, and it is worth being clear about the difference in
+        character. Synthesis is a logic problem — a covering and restructuring problem on a graph of boolean
+        functions. Everything after it is a geometry problem. They share almost no machinery.
+      </p>
+
+      <dl class="spec">
+        <div><dt>In</dt><dd>RTL, the timing constraints, and the cell library</dd></div>
+        <div><dt>Out</dt><dd>A gate-level netlist mapped to library cells</dd></div>
+        <div><dt>Optimises</dt><dd>Area, timing and power together, weighted by the constraints</dd></div>
+        <div><dt>Constrained by</dt><dd>What is in the library, and the clock and IO timing you declared</dd></div>
+        <div><dt>Goes wrong when</dt><dd>The constraints are wrong in either direction — see below</dd></div>
+      </dl>
+
+      <details class="deeper">
+        <summary>Going deeper</summary>
+        <p>
+          Technology mapping is classically posed as DAG covering: express the optimised logic as a network of
+          simple primitives, then cover it with patterns corresponding to library cells, minimising a cost that
+          is area, or delay, or some blend. Cell libraries carry dozens of functions at half a dozen drive
+          strengths each, so the choice at every node is wide, and the cost of a cell depends on what it drives
+          — a strong gate is fast but presents a big load to whatever drives it. Sizing and buffering are
+          therefore intertwined with mapping rather than done after it.
+        </p>
+        <p>
+          The reason synthesis timing is only an estimate is that there is no layout yet. Delay through a cell
+          depends on its output load, and load is mostly wire capacitance, and wire capacitance depends on
+          where the cells ended up. Classical flows plug this hole with wire load models, statistical guesses
+          keyed on fanout and block size, which are notoriously optimistic. Modern flows close the gap by
+          doing a rough placement inside synthesis — physical synthesis — precisely so the estimate is made
+          against real distances.
+        </p>
+        <p>
+          The failure mode is worth stating plainly, because it is the most common expensive mistake in the
+          whole flow. Constraints are how you tell synthesis what to care about, and it will do exactly what
+          you say. Under-constrain a design and it optimises for area, produces something small and elegant,
+          and misses its clock period by a factor you cannot recover downstream. Over-constrain it and it
+          believes you: it will throw carry-select adders and enormous parallel structures at a path that had
+          all the time in the world, and hand you a netlist twice the size it needed to be.
+        </p>
+        <p>
+          <strong>Why the demo skips it.</strong> Every preset in the app is a gate-level netlist built by hand
+          in code — the ripple-carry adder instantiates XOR, AND and OR cells per bit slice and threads the
+          carry through, the counter instantiates flip-flops and an enable chain. That is the same form
+          synthesis would have produced, and it is exactly what a placer expects to be handed. Building a real
+          synthesiser would mean an RTL parser, an elaborator, a boolean optimiser and a mapper, none of which
+          would teach you anything about placement.
+        </p>
+      </details>
+    </section>
+
+    <!-- ------------------------------------------------------- netlist -->
+    <section class="guide-section" id="netlist">
+      <div class="guide-head">
+        <h2>The netlist</h2>
+        <span class="badge badge-live">runs in the demo</span>
+      </div>
+
+      <p>
+        Not a stage so much as the handoff. The netlist is a graph: instances of library cells, and nets tying
+        their pins together. Each net has exactly one driver and some number of loads, and reading it in means
+        resolving all of that and rejecting the things no later stage can recover from — a net nobody drives,
+        or a net two cells drive at once.
+      </p>
+      <p>
+        It is worth pausing on how little this graph contains, because it explains a great deal about how
+        placement behaves. There is no information here about what the circuit computes. A placer handed a
+        multiplier and a placer handed a random graph with the same degree distribution will do the same thing
+        to both. Connectivity is the entire input.
+      </p>
+
+      <dl class="spec">
+        <div><dt>In</dt><dd>Netlist text</dd></div>
+        <div><dt>Out</dt><dd>A compiled graph of cells, pins and nets</dd></div>
+        <div><dt>Optimises</dt><dd>Nothing — the only stage in the flow with no cost function</dd></div>
+        <div><dt>Constrained by</dt><dd>The cell library; an unknown cell type cannot be instantiated</dd></div>
+        <div><dt>Goes wrong when</dt><dd>Nets are undriven or multiply driven</dd></div>
+      </dl>
+
+      <details class="deeper">
+        <summary>Going deeper</summary>
+        <p>
+          The number the demo reports here that matters later is fanout — how many inputs a single output
+          drives. A cell has a finite drive strength, and a net with more load than its driver can pull becomes
+          a slow edge, which shows up as a timing violation two or three stages downstream and is fixed by
+          inserting buffers. Very high fanout nets, reset and enable and above all the clock, are special-cased
+          precisely because no single cell can drive them: they get trees of their own.
+        </p>
+        <p>
+          In the demo the format is one cell per line — <code>TYPE instance PIN=net</code> — with boundary pins
+          declared by <code>input</code> and <code>output</code>. Boundary pins are what make the placement
+          problem well posed: they are fixed on the die edge, and they are the only fixed points the placer
+          has. Without them, minimising wirelength would collapse the design to a single point and be right to.
+        </p>
+      </details>
+    </section>
+
+    <!-- ------------------------------------------------------- floorplan -->
+    <section class="guide-section" id="floorplan">
+      <div class="guide-head">
+        <h2>Floorplanning</h2>
+        <span class="badge badge-live">runs in the demo</span>
+      </div>
+
+      <p>
+        Floorplanning decides how much silicon the design gets, what shape it is, and how it is organised
+        before a single logic cell is positioned. Standard cells are all the same height by construction, so
+        the core is cut into rows of that height and every cell will eventually sit in one, its origin landing
+        on a site — the quantum of horizontal position. Primary inputs and outputs are pinned around the edge.
+      </p>
+      <p>
+        On a real block there is more to it, and it is the part that takes judgement rather than computation.
+        Large hard macros — SRAMs, PLLs, analogue blocks — are placed by hand or with help, because a badly
+        placed memory ruins everything around it and no later stage can move it. The power grid is planned
+        here: straps of wide metal that will carry current across the block, which consume routing resource
+        that routing then does not get. Blockages are declared over regions where cells or wires are not
+        allowed.
+      </p>
+
+      <dl class="spec">
+        <div><dt>In</dt><dd>Total cell area, a target utilisation, a target aspect ratio</dd></div>
+        <div><dt>Out</dt><dd>A die and core rectangle, a row and site grid, fixed boundary pins</dd></div>
+        <div><dt>Optimises</dt><dd>Area, against the room every later stage needs to do its job</dd></div>
+        <div><dt>Constrained by</dt><dd>Cells cannot straddle rows, so widths must pack into rows</dd></div>
+        <div><dt>Goes wrong when</dt><dd>Utilisation is pushed up until routing cannot finish</dd></div>
+      </dl>
+
+      <details class="deeper">
+        <summary>Going deeper</summary>
+        <p>
+          The arithmetic is simple: core area is total cell area divided by target utilisation, shaped to the
+          requested aspect ratio, then rounded outward to whole rows and whole sites. That rounding is not
+          cosmetic. Keeping the core origin on the grid by construction means "is this cell on the grid" stays
+          a modulo test everywhere else in the flow, rather than a floating-point comparison with a tolerance.
+        </p>
+        <p>
+          Total area fitting is a necessary condition and not a sufficient one, which is a mistake the demo
+          made and had to have fixed. A cell occupies whole sites in one row and cannot be split across two, so
+          the real question is whether the set of cell widths can be packed into the available rows at all.
+          Adding up areas can say yes while the packing says no, and the symptom appears in legalisation as a
+          cell with nowhere legal to go. The floorplanner now runs a best-fit-decreasing packing check and
+          widens the core until a packing exists, then reports the utilisation it actually achieved rather than
+          the one you asked for.
+        </p>
+        <p>
+          Utilisation is the single most consequential number anyone sets in this flow, and the demo puts it on
+          a slider for exactly that reason. Set it low and the placer has all the room in the world, wirelength
+          comes out short, routing is trivial, and you have paid for silicon you are not using. Set it high and
+          you get the opposite in every respect, with the sting that the bill arrives late: a design at 90%
+          places perfectly well and then turns out to be unroutable, two stages and a lot of runtime later.
+        </p>
+      </details>
+    </section>
+
+    <!-- ------------------------------------------------------- place -->
+    <section class="guide-section" id="place">
+      <div class="guide-head">
+        <h2>Global placement</h2>
+        <span class="badge badge-live">runs in the demo</span>
+      </div>
+
+      <p>
+        This is the stage worth watching, and the demo's speed control exists for it. Placement has to choose a
+        position for every cell such that connected cells end up near each other — short wires are fast wires
+        and cheap wires — while not piling every cell into the same corner of the core. Those two goals are in
+        direct opposition, and the entire stage is the story of their tug of war.
+      </p>
+      <p>
+        The intuition for the modern approach is mechanical. Treat every net as a spring pulling its cells
+        together, and solve for the arrangement in which all the springs are as relaxed as they can
+        collectively be. Left alone that collapses the design onto a point, because zero wirelength really is
+        the optimum, so add a second force: a density field over the core that pushes cells out of crowded
+        regions into empty ones. Turn that second force up gradually. Wirelength gets worse as the design
+        spreads, deliberately, and the placement you end up looking at is where the two forces balance.
+      </p>
+      <p>
+        When this stage finishes, cells are at arbitrary real-valued coordinates and may still overlap each
+        other. That is expected. It was solving a relaxed problem on purpose.
+      </p>
+
+      <dl class="spec">
+        <div><dt>In</dt><dd>The netlist and the floorplan</dd></div>
+        <div><dt>Out</dt><dd>Real-valued positions, still overlapping</dd></div>
+        <div><dt>Optimises</dt><dd>Half-perimeter wirelength, subject to bin density staying under a ceiling</dd></div>
+        <div><dt>Constrained by</dt><dd>The core boundary, the fixed IO on the die edge, the density ceiling</dd></div>
+        <div><dt>Goes wrong when</dt><dd>It spreads too hard, too early, and clamps every cell to the boundary</dd></div>
+      </dl>
+
+      <details class="deeper">
+        <summary>Going deeper</summary>
+        <p>
+          <strong>Why HPWL.</strong> The objective is half-perimeter wirelength: for each net, take the
+          bounding box of its pins and add half its perimeter. It is a stand-in for routed length, and a good
+          one — it is exactly the optimal route length for two- and three-pin nets, which are the great
+          majority, and it costs almost nothing to evaluate. Actual routed length is unknowable at this point
+          and computing Steiner trees for every net at every iteration is out of the question.
+        </p>
+        <p>
+          <strong>The net model.</strong> A net with <em>k</em> pins is not <em>k</em> springs to a centroid;
+          that would penalise spread rather than approximate a bounding box. The demo uses a bound-to-bound
+          model: within each net, every pin is sprung to the two pins at the extremes of the net's bounding
+          box, with weight inversely proportional to the distance between them. That weighting is what makes
+          the quadratic objective approximate HPWL, and because it depends on where the cells currently are, it
+          has to be rebuilt as they move. Hence sweeps: solve, re-weight, solve again.
+        </p>
+        <p>
+          <strong>Combining the two forces.</strong> The obvious approach — solve for wirelength, then slide
+          cells down the density gradient — does not work, and the reason is instructive. The solve jumps
+          straight to the quadratic optimum, so the next one undoes whatever spreading the gradient step just
+          achieved, and the placement oscillates without converging. What works instead is putting the
+          spreading force inside the solve, as an additional term on the right-hand side, so wirelength and
+          density are balanced in one linear system rather than fighting in alternation. That is the
+          force-directed formulation, and it is what the demo implements.
+        </p>
+        <p>
+          <strong>Why the force accumulates.</strong> Each iteration's spreading increment has to stay small,
+          under about one bin. Scale it up to spread faster and the requested displacement lands outside the
+          core, every cell clamps to the boundary, and the design piles up along the edges instead of
+          spreading — which is exactly what happened when the demo's placer was tuned too aggressively. The way
+          to reach a large total force from small increments is to accumulate them across iterations, with
+          decay, which is stable because the density gradient reverses sign once a cell has moved past the
+          crowding it was escaping.
+        </p>
+        <p>
+          <strong>Knowing when to stop.</strong> Three conditions, and getting them right took more effort than
+          the algorithm did. Stop when overflow reaches its target <em>and</em> wirelength has gone flat — flat,
+          not merely non-improving, because wirelength rises during the spreading phase and stopping the first
+          time it fails to improve cuts the stage off early. Failing that, stop when a whole window of
+          iterations has passed without meaningfully improving the best overflow seen, because not every design
+          can reach the target: bins hold only a handful of cells and cell widths vary six-fold, so there is a
+          granularity floor on how evenly area can be spread.
+        </p>
+        <p>
+          <strong>Why the density target is a ceiling.</strong> Overflow is measured against a maximum bin
+          density, not against the design's average utilisation. Aiming at the average would ask a block using
+          40% of its core to spread until it filled every corner, and that is the wrong answer — a sparse block
+          should sit in a compact cluster and keep its wires short. Legalisation is perfectly happy with the
+          cluster, because the rows underneath it are only 85% full.
+        </p>
+        <p>
+          <strong>What a production placer does that this one does not.</strong> Two things, mainly. It is
+          timing-driven: nets on critical paths get higher weights, so the placer shortens the wires that
+          matter rather than treating all wires as equal. And it is congestion-aware: it estimates routing
+          demand while placing and avoids arrangements that will be unroutable, rather than leaving that
+          discovery to the router.
+        </p>
+      </details>
+    </section>
+
+    <!-- ------------------------------------------------------- legalize -->
+    <section class="guide-section" id="legalize">
+      <div class="guide-head">
+        <h2>Legalisation</h2>
+        <span class="badge badge-live">runs in the demo</span>
+      </div>
+
+      <p>
+        Global placement handed over an arrangement that is good but not manufacturable: cells sit at arbitrary
+        coordinates and overlap each other. Legalisation makes it real. Every cell moves into a row, its origin
+        lands on a site, and no two cells occupy the same space — while moving each cell as little as possible,
+        because the global placer's answer was the good one and every micron of displacement spends some of its
+        quality.
+      </p>
+      <p>
+        The demo implements Abacus. Cells are processed in order of increasing x; each is trial-fitted into its
+        preferred row and a band of neighbouring rows, and goes wherever total displacement grows least. Cells
+        pushed up against each other form a cluster that is then positioned as a single unit, and clusters that
+        collide are merged and re-solved.
+      </p>
+      <p>
+        Expect wirelength to get slightly worse here, and read that number carefully: a small positive delta is
+        the sign of a <em>good</em> global placement, because it means the answer was very nearly legal already.
+      </p>
+
+      <dl class="spec">
+        <div><dt>In</dt><dd>The overlapping global placement</dd></div>
+        <div><dt>Out</dt><dd>A legal placement: on-grid, in-row, no overlaps</dd></div>
+        <div><dt>Optimises</dt><dd>Total displacement from the global placement</dd></div>
+        <div><dt>Constrained by</dt><dd>Legality, which is absolute rather than a preference</dd></div>
+        <div><dt>Goes wrong when</dt><dd>The core is tight and a wide cell arrives late to find every row short</dd></div>
+      </dl>
+
+      <details class="deeper">
+        <summary>Going deeper</summary>
+        <p>
+          Processing cells in x order is what gives Abacus its quality, and it is also what can strand the last
+          cell. Each row is left with a gap too narrow for anything, and a wide cell arriving late finds every
+          row short even though the free area, added up, is ample. The demo handles this by retrying the whole
+          assignment widest-cell-first, which places the cells with the fewest options while the choice still
+          exists. Quality is slightly worse than the x-ordered pass, since a row is picked before its
+          neighbours are known, so it is only used when the first pass fails.
+        </p>
+        <p>
+          One detail that is easy to get wrong: cluster positions are real numbers and have to land on the site
+          grid. Because every cell width and every row origin is a whole number of sites, snapping the start of
+          a cluster puts every cell in it on-grid too — but two abutting clusters can round towards each other
+          and overlap by a single site, so the snapping has to carry a cursor.
+        </p>
+        <p>
+          Real flows follow legalisation with detail placement, which the demo does not do. Having established
+          legality, detail placement improves it in place: reordering cells within a row window, mirroring cells
+          about their vertical axis so that pins that need to be near each other are, redistributing whitespace
+          so that later buffer insertion has somewhere to go. It is local search over a legal solution rather
+          than a global optimisation, and it is where a few more percent of wirelength is recovered.
+        </p>
+      </details>
+    </section>
+
+    <!-- ------------------------------------------------------- cts -->
+    <section class="guide-section" id="cts">
+      <div class="guide-head">
+        <h2>Clock tree synthesis</h2>
+        <span class="badge">not run in the demo</span>
+      </div>
+
+      <p>
+        Up to this point the clock has been a lie: one net connected to every flip-flop in the design, with a
+        fanout no real cell could drive. Clock tree synthesis replaces it with a tree of buffers and inverters,
+        inserted and placed so that the delay from the clock source to each of thousands of endpoints is as
+        nearly equal as it can be made.
+      </p>
+      <p>
+        The reason skew matters is arithmetic. A synchronous path has one clock period to get from one flop to
+        the next, and if the receiving flop is clocked slightly later than the launching one, that difference
+        is taken out of the budget of that path. Skew is therefore not a clock problem, it is a tax levied on
+        every path in the design, and a sloppy clock tree makes every other stage's job harder.
+      </p>
+
+      <dl class="spec">
+        <div><dt>In</dt><dd>A legally placed design with the clock still a single net</dd></div>
+        <div><dt>Out</dt><dd>A buffer tree, placed, with the clock net split across it</dd></div>
+        <div><dt>Optimises</dt><dd>Skew first, then insertion delay, then the power the tree burns</dd></div>
+        <div><dt>Constrained by</dt><dd>Legal room for the buffers it inserts, and the space placement left over</dd></div>
+        <div><dt>Goes wrong when</dt><dd>Zero skew is chased regardless of buffer count and clock power</dd></div>
+      </dl>
+
+      <details class="deeper">
+        <summary>Going deeper</summary>
+        <p>
+          Its position in the flow is not arbitrary. It runs after placement because delay depends on distance
+          and there is no way to balance a tree whose endpoints have no positions. It runs before routing
+          because the clock is the most timing-critical net in the design and gets first claim on routing
+          resources, often on dedicated thick metal layers with lower resistance. And it is the last stage to
+          insert a significant number of new cells, which is the real reason placement is not allowed to fill
+          the core: CTS needs somewhere to put its buffers.
+        </p>
+        <p>
+          Two families of approach. Geometric methods build a regular structure — the H-tree being the
+          canonical one, recursively bisecting the area so that every path from root to leaf is the same
+          length by construction. Elegant, and it assumes endpoints are spread evenly, which real designs do
+          not do. Clustering methods instead group nearby endpoints, drive each group with a buffer, and
+          recurse upwards, matching delay by inserting wire and buffers where needed. Production tools are
+          closer to the second.
+        </p>
+        <p>
+          Beyond skew there are two numbers to know. Insertion delay is the absolute latency from source to
+          endpoint: a deep tree with good skew still delays the whole clock, which hurts the interfaces to
+          everything outside the block. And clock power is substantial — the clock is the one net guaranteed to
+          switch every single cycle, and its tree is routinely a large fraction of a chip's dynamic power,
+          which is why clock gating, shutting off subtrees whose logic is idle, is standard practice.
+        </p>
+        <p>
+          Two refinements worth knowing about. Useful skew deliberately breaks the balance: if one path is
+          struggling for setup and its neighbour has slack, clocking the launching flop a little early and the
+          receiving flop a little late moves time from where it is spare to where it is needed. And on-chip
+          variation means two buffers built identically at opposite corners of a block do not behave
+          identically, so signoff derates the tree — the analysis assumes the launching path is slow and the
+          capturing path is fast, or the reverse, whichever is worse.
+        </p>
+      </details>
+    </section>
+
+    <!-- ------------------------------------------------------- groute -->
+    <section class="guide-section" id="groute">
+      <div class="guide-head">
+        <h2>Global routing</h2>
+        <span class="badge">not run in the demo</span>
+      </div>
+
+      <p>
+        Routing is split into two stages because doing it in one is intractable. Global routing is the planning
+        half: divide the core into a coarse grid of tiles, and decide for each net which tiles it passes
+        through and roughly which metal layers it uses. No actual wire geometry is produced. What is produced
+        is a plan that the detail router can be confident is achievable.
+      </p>
+      <p>
+        The quantity that governs everything here is capacity. Each tile boundary can be crossed only so many
+        times per layer, because a layer has a finite number of tracks running across it, and the plan is only
+        valid if no boundary is asked to carry more nets than it has tracks for. Congestion is the measure of
+        how badly that is being violated, and relieving it is what the stage spends its time on.
+      </p>
+
+      <dl class="spec">
+        <div><dt>In</dt><dd>A legal placement with a clock tree</dd></div>
+        <div><dt>Out</dt><dd>A tile-level path and layer assignment for every net</dd></div>
+        <div><dt>Optimises</dt><dd>Wirelength and via count, subject to no tile exceeding its track capacity</dd></div>
+        <div><dt>Constrained by</dt><dd>Track capacity per tile per layer, and each layer's preferred direction</dd></div>
+        <div><dt>Goes wrong when</dt><dd>Congestion cannot be relieved and the fix is back in placement</dd></div>
+      </dl>
+
+      <details class="deeper">
+        <summary>Going deeper</summary>
+        <p>
+          Metal layers alternate preferred direction — one horizontal, the next vertical, and so on up the
+          stack — because that is what makes crossings possible at all. Two nets that need to cross do so on
+          different layers, joined to their own layer by vias. Vias are not free: each one adds resistance and
+          consumes area on both layers, so via count is part of the objective and not an afterthought.
+        </p>
+        <p>
+          The standard technique is rip-up and reroute. Route every net by the cheapest path, find the tiles
+          that are over capacity, tear out the nets crossing them and route them again with the cost of those
+          tiles raised. Repeat. Nets that were routed early and greedily are forced to yield to nets that have
+          no alternative, and the cost function does the negotiating — the same idea FPGA routers use under the
+          name negotiated congestion. It converges in practice, and when it does not converge, that is
+          information: the design as placed cannot be wired.
+        </p>
+        <p>
+          Which makes global routing the stage that finally tells you whether the floorplan was honest. This is
+          where a design that placed beautifully at high utilisation reveals that it has nowhere to put its
+          wires, and the remedy is upstream every time: more area, or a placement that considered congestion
+          while it was still free to move things. Congestion maps out of global routing are fed back into
+          placement for exactly this reason.
+        </p>
+      </details>
+    </section>
+
+    <!-- ------------------------------------------------------- droute -->
+    <section class="guide-section" id="droute">
+      <div class="guide-head">
+        <h2>Detail routing</h2>
+        <span class="badge">not run in the demo</span>
+      </div>
+
+      <p>
+        Detail routing turns the plan into metal: specific tracks, specific segments, specific vias, for every
+        net in the design. This is the point at which a layout becomes something that can actually be
+        manufactured, and by a wide margin it is the most computationally expensive stage in the flow — on a
+        large block it can run for days.
+      </p>
+      <p>
+        What makes it hard is not path-finding, it is the rules. Design rules are numerous, they are non-local,
+        and they are absolute: minimum spacing between shapes, minimum area for a shape, how far metal must
+        extend past a via, how long a run may be before its end must be treated specially, and at advanced
+        nodes rules whose applicability depends on what is nearby for some distance. Satisfying one commonly
+        violates another, which is why the last few violations in a congested corner can take as long as the
+        first ninety-nine per cent of the design.
+      </p>
+
+      <dl class="spec">
+        <div><dt>In</dt><dd>The global route plan</dd></div>
+        <div><dt>Out</dt><dd>Real wire geometry on real tracks, with vias</dd></div>
+        <div><dt>Optimises</dt><dd>Zero violations first; then wirelength, via count and yield preferences</dd></div>
+        <div><dt>Constrained by</dt><dd>The design rules, in full</dd></div>
+        <div><dt>Goes wrong when</dt><dd>A handful of violations remain, each fix creating the next</dd></div>
+      </dl>
+
+      <details class="deeper">
+        <summary>Going deeper</summary>
+        <p>
+          Everything before this stage was a model. Detail routing produces the first geometry from which
+          resistance and capacitance can actually be extracted, and those extracted parasitics are what timing
+          is finally signed off against. It is entirely routine for a design that looked closed on placement
+          estimates to open back up here, because a net that the estimate said was short turned out to detour
+          around congestion, or to climb to a thin upper layer, or to collect more vias than anyone budgeted
+          for.
+        </p>
+        <p>
+          At advanced nodes the stage acquires constraints that have nothing to do with electricity. When a
+          layer is printed with multiple exposures, the shapes on it must be two-colourable such that same-
+          colour shapes stay far enough apart — a graph colouring problem layered on top of the routing
+          problem. Antenna rules limit how much bare metal may be connected to a gate during manufacturing,
+          before the rest of the circuit exists to bleed off accumulated charge, and are fixed by adding diodes
+          or by cutting a long wire and rejoining it on another layer. And yield preferences pull towards
+          redundancy: a doubled via where there is room for one is free insurance against a single via failing.
+        </p>
+      </details>
+    </section>
+
+    <!-- ------------------------------------------------------- sta -->
+    <section class="guide-section" id="sta">
+      <div class="guide-head">
+        <h2>Static timing analysis</h2>
+        <span class="badge">not run in the demo</span>
+      </div>
+
+      <p>
+        Static timing analysis is how anyone knows whether a chip will run at its target frequency. It computes
+        when every signal arrives at every pin, compares that against when it was required, and reports the
+        difference. Static means it never simulates: it makes no assumption whatsoever about what data the
+        circuit will see, which is what makes it exhaustive over inputs in a way that simulation can never be,
+        and why it is the basis of signoff rather than a supplement to it.
+      </p>
+      <p>
+        Note what it does <em>not</em> do: STA optimises nothing. It is the measuring instrument. What it
+        produces is slack — required time minus arrival time — and negative slack is a violation. Fixing
+        violations is the job of the other stages, in response to what STA reports.
+      </p>
+
+      <dl class="spec">
+        <div><dt>In</dt><dd>The netlist, the timing constraints, and delays from estimates or extraction</dd></div>
+        <div><dt>Out</dt><dd>Slack on every path; worst and total negative slack as headlines</dd></div>
+        <div><dt>Optimises</dt><dd>Nothing. It measures; the other stages respond</dd></div>
+        <div><dt>Constrained by</dt><dd>Setup and hold, in every process, voltage and temperature corner</dd></div>
+        <div><dt>Goes wrong when</dt><dd>A setup fix slows a path and opens a hold violation elsewhere</dd></div>
+      </dl>
+
+      <details class="deeper">
+        <summary>Going deeper</summary>
+        <p>
+          Two checks, pulling in opposite directions. Setup requires data to arrive <em>early</em> enough:
+          launched from one flop, through the logic, it must be stable at the next flop's input some setup time
+          before the clock edge that captures it. The budget is one clock period, minus that setup time, minus
+          whatever clock skew works against you. Hold requires the data to arrive <em>late</em> enough: it must
+          not race through the logic so fast that it overwrites the receiving flop's input before that flop has
+          captured the previous value. Setup is fixed by making paths faster, hold by making them slower, and
+          the same edit can easily fix one while breaking the other.
+        </p>
+        <p>
+          Setup is a frequency problem — a chip that fails setup runs slower than intended but runs. Hold is a
+          functional problem, independent of clock frequency, and a chip that fails hold does not work at any
+          speed. That asymmetry is why hold violations are taken so seriously so late.
+        </p>
+        <p>
+          Then multiply the whole analysis by the operating conditions. Transistors are slower hot and at low
+          voltage, faster cold and at high voltage, and manufacturing spreads them either side of nominal. Each
+          combination is a corner, and a design must hold in all of them — with the twist that setup is
+          typically worst in the slow corner and hold in the fast one, so the two checks are not even fighting
+          in the same conditions. Multi-mode multi-corner analysis crosses that with the design's operating
+          modes, and the number of analyses to run gets large quickly.
+        </p>
+        <p>
+          The most important practical point is that STA is not a stage at the end. It runs throughout: after
+          synthesis on wire-load estimates, after placement on distance-based estimates, after CTS with a real
+          clock tree, and after routing on extracted parasitics, each pass more trustworthy than the last.
+          Timing closure — the loop of measuring, making a targeted engineering change, and measuring again —
+          is where most of the schedule on a real chip actually goes.
+        </p>
+      </details>
+    </section>
+
+    <!-- ------------------------------------------------------- signoff -->
+    <section class="guide-section" id="signoff">
+      <div class="guide-head">
+        <h2>Signoff</h2>
+        <span class="badge">not run in the demo</span>
+      </div>
+
+      <p>
+        Signoff is the set of checks that must all pass before a design is committed to a mask set, which is an
+        expensive and irreversible thing to be wrong about. Parasitic extraction turns the routed geometry into
+        resistances and capacitances for final timing. Design rule checking verifies the layout against the
+        foundry's rules, and layout-versus-schematic verifies that the layout implements the netlist it claims
+        to — that the polygons are the circuit.
+      </p>
+      <p>
+        Alongside those, the physical-effects checks. IR drop analysis asks whether the power grid can actually
+        deliver current everywhere without the local supply sagging enough to slow the logic down.
+        Electromigration asks whether any wire is carrying enough current density to erode itself over the
+        product's lifetime. Power analysis produces the numbers the system designers were promised. Each of
+        these can send you back into the flow, which is why none of them are left to the end if they can be
+        estimated earlier.
+      </p>
+    </section>
+
+    <!-- ------------------------------------------------------- closing -->
+    <section class="guide-section" id="demo">
+      <div class="guide-head"><h2>What the demo actually runs</h2></div>
+
+      <p>
+        Four stages, with real algorithms rather than animations of algorithms: the netlist compiler, the
+        floorplanner with its packing feasibility check, an analytic force-directed global placer, and an
+        Abacus legaliser. The placer and the legaliser are the genuine article, scaled down — the same
+        objective, the same net model, the same failure modes, on hundreds of cells instead of hundreds of
+        thousands. It runs in a Web Worker so the numerical loop does not freeze the page, and draws to a
+        canvas so that thousands of flylines stay smooth.
+      </p>
+      <p>
+        The speed control is there because the interesting part of global placement is not the final number, it
+        is the shape of the trade. Slow it down and watch wirelength climb while density overflow falls: that
+        is the density force winning ground it needs, at a price in wirelength that is being paid on purpose.
+        Pause it and step an iteration at a time if you want to see the mechanism rather than the result.
+      </p>
+      <p class="guide-cta">
+        <a class="app-btn app-btn-primary" href="/eda/">Open the demo</a>
+        <a class="app-btn app-btn-ghost" href="/">Back to soumitra.dev</a>
+      </p>
+    </section>
+  </main>
+</body>
+</html>

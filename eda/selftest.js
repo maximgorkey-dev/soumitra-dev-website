@@ -10,15 +10,24 @@
  * Run it from the browser console on /eda/:
  *
  *     const t = await import("/eda/selftest.js"); console.log(t.report());
+ *     console.log((await t.runRunnerTests()).lines.join("\n"));
+ *
+ * Or headless, from the repo root on the server, which is the faster loop:
+ *
+ *     node --input-type=module -e 'const t = await import("./eda/selftest.js");
+ *       console.log(t.report()); const r = await t.runRunnerTests();
+ *       console.log(r.lines.join("\n")); process.exit(r.ok ? 0 : 1);'
  *
  * It is never imported by the app, so it costs a visitor nothing.
  */
 
-import { PRESETS } from "./core/presets.js";
+import { PRESETS, buildPreset } from "./core/presets.js";
 import { compile, parseNetlist, toNetlistText } from "./core/netlist.js";
 import { floorplan } from "./flow/floorplan.js";
 import { globalPlace } from "./flow/globalplace.js";
 import { legalize } from "./flow/legalize.js";
+import { createRunner } from "./flow/runner.js";
+import { STAGES } from "./flow/stages.js";
 import { hpwl, checkLegality, utilization } from "./core/metrics.js";
 import { TECH } from "./core/tech.js";
 
@@ -288,6 +297,108 @@ export function sweep(placeOpts = {}, { presetIds = null, constraints = null } =
       `${illegal} illegal, ${totalMs}ms total`
   );
   return lines.join("\n");
+}
+
+/**
+ * The runner's playback machinery, which the invariant tests above cannot
+ * reach because they drive the stage generators directly.
+ *
+ * Pause, single-step and speed changes all work by holding open the await that
+ * the stage loops already use between frames, so the thing worth testing is
+ * that the await is actually released — a paused loop that never wakes is a
+ * hang, and a cancel that cannot reach a paused loop is a worse one.
+ *
+ * Async, so unlike `runTests` it has to be awaited:
+ *
+ *     const t = await import("/eda/selftest.js"); console.log(await t.runRunnerTests());
+ */
+export async function runRunnerTests() {
+  const failures = [];
+  const lines = [];
+  const check = (ok, label, detail = "") => {
+    if (!ok) failures.push(`${label}${detail ? ` — ${detail}` : ""}`);
+    lines.push(`  ${ok ? "ok  " : "FAIL"} ${label}`);
+    return ok;
+  };
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  /* ---------------- a full run through the runner ---------------- */
+  lines.push("full runs");
+  for (const p of PRESETS) {
+    const msgs = [];
+    const runner = createRunner((m) => msgs.push(m));
+    runner.load(buildPreset(p.id));
+    runner.setPace({ delay: 0, every: 4 });
+    await runner.run({});
+
+    const done = msgs.filter((m) => m.t === "stage" && m.status === "done").map((m) => m.id);
+    const errs = msgs.filter((m) => m.t === "stage" && m.status === "error");
+    check(errs.length === 0, `${p.id}: no stage errors`, errs.map((e) => e.message).join("; "));
+    check(STAGES.every((s) => done.includes(s.id)), `${p.id}: every stage completed`, done.join(","));
+
+    // The UI reads the overflow target off the frame to caption its live
+    // gauge, so a frame without one silently blanks the caption.
+    const frames = msgs.filter((m) => m.t === "frame" && m.stage === "place" && m.metrics.hpwl != null);
+    check(frames.length > 0, `${p.id}: placement emitted frames`);
+    check(
+      frames.every((f) => f.metrics.targetOverflow != null),
+      `${p.id}: every frame carries the overflow target`
+    );
+  }
+
+  /* ---------------- pause, step one frame, resume ---------------- */
+  lines.push("");
+  lines.push("playback control");
+  {
+    const msgs = [];
+    const runner = createRunner((m) => msgs.push(m));
+    const placeFrames = () => msgs.filter((m) => m.t === "frame" && m.stage === "place").length;
+
+    runner.load(buildPreset("adder16"));
+    runner.setPace({ delay: 25, every: 1 });
+    const finished = runner.run({});
+
+    await wait(500);
+    runner.setPaused(true);
+    await wait(150);
+    const held = placeFrames();
+    check(held > 0, "placement was running when paused", `${held} frames`);
+    check(msgs.some((m) => m.t === "paused" && m.on === true), "paused state is reported to the UI");
+
+    await wait(200);
+    check(placeFrames() === held, "no frames advance while paused", `${placeFrames()} vs ${held}`);
+
+    runner.tick();
+    await wait(150);
+    check(placeFrames() === held + 1, "one tick advances exactly one frame", `${placeFrames()}`);
+
+    // Changing pace mid-run is the reason pace is mutable rather than captured.
+    runner.setPace({ delay: 0, every: 8 });
+    runner.setPaused(false);
+    await finished;
+
+    const done = msgs.filter((m) => m.t === "stage" && m.status === "done").map((m) => m.id);
+    check(STAGES.every((s) => done.includes(s.id)), "run completes after resume", done.join(","));
+  }
+
+  /* ---------------- cancelling a paused run ---------------- */
+  {
+    const msgs = [];
+    const runner = createRunner((m) => msgs.push(m));
+    runner.load(buildPreset("adder16"));
+    runner.setPace({ delay: 25, every: 1 });
+    const finished = runner.run({});
+
+    await wait(400);
+    runner.setPaused(true);
+    await wait(100);
+    runner.cancel();
+
+    const settled = await Promise.race([finished.then(() => "done"), wait(3000).then(() => "hung")]);
+    check(settled === "done", "cancel wakes a paused loop rather than hanging");
+  }
+
+  return { ok: failures.length === 0, failures, lines };
 }
 
 /** Human-readable transcript, for pasting into a console. */

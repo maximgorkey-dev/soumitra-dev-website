@@ -19,7 +19,10 @@ const PROJECTS = [
     desc:
       "A digital place-and-route demonstrator that runs entirely in the browser. Build a gate-level netlist, size a floorplan, then watch an analytic global placer trade wirelength against density and an Abacus legaliser snap the result onto the row and site grid. The algorithms are real, just small.",
     tags: ["Physical Design", "Placement", "JavaScript", "Canvas", "Web Workers"],
-    links: [{ label: "Open the demo", href: "/eda/" }],
+    links: [
+      { label: "Open the demo", href: "/eda/" },
+      { label: "Read the primer", href: "/eda/guide/" },
+    ],
   },
   {
     title: "This website (soumitra.dev)",

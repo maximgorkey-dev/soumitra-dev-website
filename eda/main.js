@@ -13,7 +13,7 @@
 import { PRESETS, DEFAULT_PRESET, buildPreset } from "./core/presets.js";
 import { parseNetlist, toNetlistText } from "./core/netlist.js";
 import { LIBRARY } from "./core/library.js";
-import { STAGES, PLANNED } from "./flow/stages.js";
+import { STAGES, PLANNED, UPSTREAM } from "./flow/stages.js";
 import { createView } from "./ui/view.js";
 import {
   createStageBar,
@@ -21,12 +21,29 @@ import {
   createLog,
   createSparkline,
   createExplainer,
+  createFocusStrip,
   PLANNED_NOTE,
   fmt,
 } from "./ui/panels.js";
 import * as storage from "./ui/storage.js";
 
 const el = (id) => document.getElementById(id);
+
+/**
+ * The animation speed dial, slowest first. Below the top two settings every
+ * iteration is drawn and the wait does the pacing; the top two stop waiting and
+ * skip frames instead, because past a certain rate the frame is the cost.
+ */
+const SPEED_STEPS = [
+  { label: "320 ms", delay: 320, every: 1 },
+  { label: "160 ms", delay: 160, every: 1 },
+  { label: "80 ms", delay: 80, every: 1 },
+  { label: "40 ms", delay: 40, every: 1 },
+  { label: "16 ms", delay: 16, every: 1 },
+  { label: "Fast", delay: 0, every: 2 },
+  { label: "Instant", delay: 0, every: 12 },
+];
+const DEFAULT_SPEED = 5;
 
 const state = {
   source: null,
@@ -35,11 +52,16 @@ const state = {
   savedId: null,
   savedName: null,
   signedIn: false,
-  speed: "fast",
+  speedIndex: DEFAULT_SPEED,
   running: false,
+  paused: false,
   stageMetrics: {},
   live: null,
   floorplan: null,
+  // First and previous placement samples, for "how far has it come" and "which
+  // way is it going". Reset whenever placement restarts.
+  placeFirst: null,
+  placePrev: null,
 };
 
 /* ------------------------------------------------------------------ */
@@ -50,8 +72,10 @@ const log = createLog(el("log"));
 const metricsPanel = createMetrics(el("metrics"));
 const spark = createSparkline(el("spark"));
 const explainer = createExplainer(el("explain"));
+const focus = createFocusStrip(el("focus"));
 
 const stageBar = createStageBar(el("stage-bar"), {
+  upstream: UPSTREAM,
   stages: STAGES,
   planned: PLANNED,
   onInfo: (id) => explainer.show(id),
@@ -87,9 +111,12 @@ function handle(msg) {
       stageBar.reset();
       metricsPanel.clear();
       spark.clear();
+      focus.reset();
       state.stageMetrics = {};
       state.live = null;
       state.floorplan = null;
+      state.placeFirst = null;
+      state.placePrev = null;
       break;
 
     case "design":
@@ -111,6 +138,7 @@ function handle(msg) {
           "place",
           `iter ${msg.iter} · ${fmt.um(msg.metrics.hpwl, 1)} · ovf ${fmt.pct(msg.metrics.overflow, 1)}`
         );
+        showPlaceGauges(msg.iter, msg.metrics);
         spark.push({ hpwl: msg.metrics.hpwl, overflow: msg.metrics.overflow });
         renderMetrics();
       }
@@ -119,7 +147,14 @@ function handle(msg) {
     case "progress":
       if (msg.stage === "legalize") {
         stageBar.setMetric("legalize", `${msg.placed} / ${msg.total} cells`);
+        focus.setGauges([
+          { role: "objective", label: "Cells placed", value: `${fmt.int(msg.placed)} / ${fmt.int(msg.total)}` },
+        ]);
       }
+      break;
+
+    case "paused":
+      setPaused(msg.on);
       break;
 
     case "stage":
@@ -144,6 +179,12 @@ function onStage(msg) {
 
   if (msg.status === "running") {
     setRunning(true);
+    focus.setStage(msg.id, { label: labelOf(msg.id) });
+    focus.clearGauges();
+    if (msg.id === "place") {
+      state.placeFirst = null;
+      state.placePrev = null;
+    }
     log.banner(`--- ${labelOf(msg.id)} ---`);
     return;
   }
@@ -164,10 +205,84 @@ function onStage(msg) {
   }
 
   stageBar.setMetric(msg.id, headline(msg.id, msg.metrics || {}));
+  focus.setGauges(finalGauges(msg.id, msg.metrics || {}));
   renderMetrics();
 }
 
 const labelOf = (id) => (STAGES.find((s) => s.id === id) || { label: id }).label;
+
+/* ------------------------------------------------------------------ */
+/* live objective strip                                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Placement in flight. Trend is against the previous frame and tells you which
+ * way each number is moving right now; the note is against the first frame, so
+ * a wirelength that is rising this instant can still be shown as a large net
+ * improvement over where it started. Both readings are needed to make sense of
+ * what is on the canvas.
+ */
+function showPlaceGauges(iter, m) {
+  if (!state.placeFirst) state.placeFirst = m;
+  const first = state.placeFirst;
+  const prev = state.placePrev || m;
+  state.placePrev = m;
+
+  const target = m.targetOverflow;
+  focus.setGauges([
+    {
+      role: "objective",
+      label: "Wirelength",
+      value: fmt.um(m.hpwl, 1),
+      trend: m.hpwl - prev.hpwl,
+      note: first.hpwl ? `${fmt.signedPct((m.hpwl - first.hpwl) / first.hpwl)} from start` : "",
+    },
+    {
+      role: "constraint",
+      label: "Density overflow",
+      value: fmt.pct(m.overflow, 1),
+      trend: m.overflow - prev.overflow,
+      note: target != null ? `target ${fmt.pct(target, 0)}` : "",
+    },
+    { role: "info", label: "Iteration", value: fmt.int(iter) },
+  ]);
+}
+
+/** What the strip settles on once a stage finishes. */
+function finalGauges(id, m) {
+  switch (id) {
+    case "netlist":
+      return [
+        { role: "info", label: "Cells", value: fmt.int(m.cells) },
+        { role: "info", label: "Nets", value: fmt.int(m.nets) },
+        { role: "info", label: "Max fanout", value: fmt.int(m.maxFanout) },
+      ];
+    case "floorplan":
+      return [
+        { role: "objective", label: "Utilisation", value: fmt.pct(m.utilization) },
+        { role: "info", label: "Rows x sites", value: `${m.rows} x ${m.sitesPerRow}` },
+      ];
+    case "place":
+      return [
+        { role: "objective", label: "Wirelength", value: fmt.um(m.hpwl, 1) },
+        {
+          role: "constraint",
+          label: "Density overflow",
+          value: fmt.pct(m.overflow, 1),
+          note: m.targetOverflow != null ? `target ${fmt.pct(m.targetOverflow, 0)}` : "",
+        },
+        { role: "info", label: "Stopped", value: m.stopReason || "—" },
+      ];
+    case "legalize":
+      return [
+        { role: "objective", label: "Displacement avg", value: fmt.um(m.avgDisplacement) },
+        { role: "constraint", label: "Cost of legality", value: fmt.signedPct(m.hpwlDelta) },
+        { role: "info", label: "Legal", value: m.legal ? "yes" : "no" },
+      ];
+    default:
+      return [];
+  }
+}
 
 function headline(id, m) {
   switch (id) {
@@ -306,7 +421,7 @@ function showConstraintValues() {
 }
 
 function runFlow() {
-  worker.postMessage({ t: "run", opts: { speed: state.speed } });
+  worker.postMessage({ t: "run", opts: {} });
 }
 
 function setRunning(on) {
@@ -315,6 +430,24 @@ function setRunning(on) {
   el("btn-step").disabled = on;
   el("btn-apply-constraints").disabled = on;
   el("btn-cancel").disabled = !on;
+  el("btn-pause").disabled = !on;
+  if (!on) setPaused(false);
+}
+
+function setPaused(on) {
+  state.paused = on;
+  el("btn-pause").textContent = on ? "Resume" : "Pause";
+  el("btn-pause").classList.toggle("app-btn-primary", on);
+  // Stepping one iteration at a time only means anything while paused.
+  el("btn-tick").disabled = !on;
+  el("focus").classList.toggle("focus-paused", on);
+}
+
+/** Push the current dial position to the worker. Applies mid-run. */
+function sendPace() {
+  const step = SPEED_STEPS[state.speedIndex] || SPEED_STEPS[DEFAULT_SPEED];
+  el("speed-out").textContent = step.label;
+  worker.postMessage({ t: "pace", pace: { delay: step.delay, every: step.every } });
 }
 
 /* ------------------------------------------------------------------ */
@@ -345,12 +478,12 @@ function initControls() {
     const c = currentConstraints();
     state.source.constraints = { ...state.source.constraints, ...c };
     spark.clear();
-    worker.postMessage({ t: "rerun", opts: { speed: state.speed, constraints: c } });
+    worker.postMessage({ t: "rerun", opts: { constraints: c } });
   });
 
   el("btn-run").addEventListener("click", runFlow);
   el("btn-step").addEventListener("click", () => {
-    worker.postMessage({ t: "step", opts: { speed: "watch" } });
+    worker.postMessage({ t: "step", opts: {} });
   });
   el("btn-cancel").addEventListener("click", () => worker.postMessage({ t: "cancel" }));
   el("btn-reset").addEventListener("click", () => {
@@ -360,8 +493,14 @@ function initControls() {
     worker.postMessage({ t: "load", source: state.source });
   });
 
-  el("speed").addEventListener("change", () => {
-    state.speed = el("speed").value;
+  el("btn-pause").addEventListener("click", () => {
+    worker.postMessage({ t: state.paused ? "resume" : "pause" });
+  });
+  el("btn-tick").addEventListener("click", () => worker.postMessage({ t: "tick" }));
+
+  el("speed").addEventListener("input", () => {
+    state.speedIndex = Number(el("speed").value);
+    sendPace();
   });
 
   el("btn-clear-log").addEventListener("click", () => log.clear());
@@ -419,6 +558,11 @@ function initControls() {
   });
 
   el("btn-save").addEventListener("click", saveCurrent);
+
+  el("speed").value = String(state.speedIndex);
+  sendPace();
+  setPaused(false);
+  focus.reset();
 }
 
 /** What a share link carries: the source, not the placement. */

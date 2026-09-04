@@ -20,13 +20,73 @@ import { STAGES } from "./stages.js";
 
 export { STAGES };
 
-const SPEEDS = {
-  instant: { every: 12, delay: 0 },
-  fast: { every: 2, delay: 0 },
-  watch: { every: 1, delay: 45 },
-};
-
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * How fast the animation runs. `delay` is milliseconds of pause after a frame
+ * and `every` is how many solver iterations pass between frames — the two ends
+ * of the same dial. Slow viewing wants delay with every=1 so no iteration is
+ * skipped; raw throughput wants delay=0 and a larger every, because the cost
+ * at that point is the frame itself, not the wait.
+ *
+ * Mutable and read inside the stage loops rather than captured when the stage
+ * starts, so dragging the speed slider mid-run takes effect on the next frame.
+ * That matters: the reason to slow the placer down is usually that something
+ * interesting is happening right now.
+ */
+const pace = { delay: 0, every: 2 };
+
+/**
+ * Pause, resume, and advance-one-frame, layered on top of the delay.
+ *
+ * The stage loops already await between frames so that a `cancel` message can
+ * land; holding that await open is all pausing requires. A single waiter exists
+ * at a time — one stage runs at a time — so one resolver slot is enough.
+ */
+function createPacer() {
+  let paused = false;
+  let credits = 0; // frames granted while paused, by the step-one button
+  let wake = null;
+
+  const nudge = () => {
+    if (wake) {
+      const w = wake;
+      wake = null;
+      w();
+    }
+  };
+
+  return {
+    isPaused: () => paused,
+    setPaused(on) {
+      paused = on;
+      if (!on) nudge();
+    },
+    /** Let exactly one more frame through without leaving the paused state. */
+    grant() {
+      credits += 1;
+      nudge();
+    },
+    /** Wake any waiter and drop the paused state — for cancel and reset. */
+    release() {
+      paused = false;
+      credits = 0;
+      nudge();
+    },
+    async wait(delay) {
+      if (delay > 0) await sleep(delay);
+      while (paused) {
+        if (credits > 0) {
+          credits -= 1;
+          return;
+        }
+        await new Promise((resolve) => {
+          wake = resolve;
+        });
+      }
+    },
+  };
+}
 
 export function createRunner(emit) {
   let source = null;
@@ -34,6 +94,7 @@ export function createRunner(emit) {
   let done = -1; // index into STAGES of the last completed stage
   let running = false;
   let cancelled = false;
+  const pacer = createPacer();
 
   const log = (text, level = "info") => emit({ t: "log", level, text });
 
@@ -103,8 +164,7 @@ export function createRunner(emit) {
     return res;
   }
 
-  async function stagePlace(speed) {
-    const { every, delay } = SPEEDS[speed] || SPEEDS.fast;
+  async function stagePlace() {
     const gen = globalPlace(design, {});
     let seen = 0;
     let result = null;
@@ -117,11 +177,18 @@ export function createRunner(emit) {
       }
       seen += 1;
       const v = step.value;
-      if (seen % every === 0) {
-        frame("place", v.iter, { hpwl: v.hpwl, overflow: v.overflow, peak: v.peak });
+      // Paused counts as "show me every iteration": skipping frames while
+      // someone is stepping through by hand would hide the ones they asked for.
+      if (pacer.isPaused() || seen % pace.every === 0) {
+        frame("place", v.iter, {
+          hpwl: v.hpwl,
+          overflow: v.overflow,
+          peak: v.peak,
+          targetOverflow: v.targetOverflow,
+        });
         // Yielding to the event loop is what lets a Cancel message land
         // mid-run; without it the worker is deaf until the stage finishes.
-        await sleep(delay);
+        await pacer.wait(pace.delay);
       }
       if (cancelled) break;
     }
@@ -130,8 +197,7 @@ export function createRunner(emit) {
     return result || { metrics: {}, logs: ["cancelled"] };
   }
 
-  async function stageLegalize(speed) {
-    const { delay } = SPEEDS[speed] || SPEEDS.fast;
+  async function stageLegalize() {
     const gen = legalize(design, {});
     let result = null;
 
@@ -142,7 +208,10 @@ export function createRunner(emit) {
         break;
       }
       emit({ t: "progress", stage: "legalize", ...step.value });
-      await sleep(delay ? 12 : 0);
+      // Legalisation reports per row, not per iteration, so there are far
+      // fewer steps than placement has — pacing it at the full delay would
+      // make it crawl. A fraction of it reads as deliberate without dragging.
+      await pacer.wait(pace.delay ? Math.min(24, pace.delay) : 0);
       if (cancelled) break;
     }
 
@@ -150,7 +219,7 @@ export function createRunner(emit) {
     return result || { metrics: {}, logs: ["cancelled"] };
   }
 
-  async function runStage(index, speed) {
+  async function runStage(index) {
     const stage = STAGES[index];
     emit({ t: "stage", id: stage.id, status: "running" });
 
@@ -158,8 +227,8 @@ export function createRunner(emit) {
       let res;
       if (stage.id === "netlist") res = stageNetlist();
       else if (stage.id === "floorplan") res = stageFloorplan();
-      else if (stage.id === "place") res = await stagePlace(speed);
-      else if (stage.id === "legalize") res = await stageLegalize(speed);
+      else if (stage.id === "place") res = await stagePlace();
+      else if (stage.id === "legalize") res = await stageLegalize();
       else throw new Error(`no implementation for stage ${stage.id}`);
 
       for (const line of res.logs || []) log(line);
@@ -183,16 +252,35 @@ export function createRunner(emit) {
       emit({ t: "reset", stages: STAGES.map((s) => s.id) });
     },
 
+    /** Change the animation pacing. Safe to call mid-run; that is the point. */
+    setPace(next = {}) {
+      if (Number.isFinite(next.delay)) pace.delay = Math.max(0, next.delay);
+      if (Number.isFinite(next.every)) pace.every = Math.max(1, Math.round(next.every));
+    },
+
+    setPaused(on) {
+      pacer.setPaused(Boolean(on));
+      emit({ t: "paused", on: pacer.isPaused() });
+    },
+
+    /** Advance one frame while paused. No effect otherwise. */
+    tick() {
+      if (pacer.isPaused()) pacer.grant();
+    },
+
     /** Run every remaining stage, or up to and including `upto`. */
-    async run({ speed = "fast", upto = null } = {}) {
+    async run({ upto = null } = {}) {
       if (running) return;
       running = true;
       cancelled = false;
+      // A run left paused from last time would look like a dead Run button.
+      pacer.release();
+      emit({ t: "paused", on: false });
       const limit = upto ? STAGES.findIndex((s) => s.id === upto) : STAGES.length - 1;
 
       for (let i = done + 1; i <= limit; i++) {
         if (cancelled) break;
-        const ok = await runStage(i, speed);
+        const ok = await runStage(i);
         if (!ok) break;
       }
 
@@ -201,35 +289,43 @@ export function createRunner(emit) {
     },
 
     /** Run exactly one more stage. */
-    async step({ speed = "watch" } = {}) {
+    async step() {
       if (running || done >= STAGES.length - 1) return;
       running = true;
       cancelled = false;
-      await runStage(done + 1, speed);
+      pacer.release();
+      emit({ t: "paused", on: false });
+      await runStage(done + 1);
       running = false;
       emit({ t: "idle", done, cancelled });
     },
 
     cancel() {
       if (running) cancelled = true;
+      // Cancelling a paused run has to wake the loop, or it never sees the flag.
+      pacer.release();
+      emit({ t: "paused", on: false });
     },
 
     /** Recompile from source, throwing away all placement. */
     reset() {
       cancelled = true;
+      pacer.release();
+      emit({ t: "paused", on: false });
       design = null;
       done = -1;
       emit({ t: "reset", stages: STAGES.map((s) => s.id) });
     },
 
     /** Re-run the flow after a constraint change, keeping the same netlist. */
-    async rerun({ speed = "fast", constraints = null } = {}) {
+    async rerun({ constraints = null } = {}) {
       if (constraints) source = { ...source, constraints: { ...source.constraints, ...constraints } };
       cancelled = true;
+      pacer.release();
       design = null;
       done = -1;
       emit({ t: "reset", stages: STAGES.map((s) => s.id) });
-      await this.run({ speed });
+      await this.run({});
     },
 
     legality() {

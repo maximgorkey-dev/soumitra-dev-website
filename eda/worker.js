@@ -26,6 +26,20 @@ self.onmessage = async (event) => {
       case "rerun":
         await runner.rerun(msg.opts || {});
         break;
+      case "pace":
+        runner.setPace(msg.pace || {});
+        break;
+      // Pause, resume and tick have to be handled while a stage is mid-flight,
+      // which works for the same reason cancel does: the stage loop awaits.
+      case "pause":
+        runner.setPaused(true);
+        break;
+      case "resume":
+        runner.setPaused(false);
+        break;
+      case "tick":
+        runner.tick();
+        break;
       case "cancel":
         runner.cancel();
         break;

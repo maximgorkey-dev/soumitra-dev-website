@@ -209,7 +209,10 @@ export function* globalPlace(design, options = {}) {
     const wl = hpwl(design);
     const rm = densityMap(design, report.binsX, report.binsY, target);
     history.push({ iter, hpwl: wl, overflow: rm.overflow });
-    last = { iter, hpwl: wl, overflow: rm.overflow, peak: rm.peak, alpha };
+    // `targetOverflow` rides along on every yield, under the same name the final
+    // metrics use, so the UI can show what overflow is being aimed at without
+    // importing the placer to read its defaults.
+    last = { iter, hpwl: wl, overflow: rm.overflow, peak: rm.peak, alpha, targetOverflow: opts.targetOverflow };
     yield last;
 
     best = Math.min(best, rm.overflow);
@@ -239,6 +242,7 @@ export function* globalPlace(design, options = {}) {
     metrics: {
       hpwl: hpwl(design),
       overflow: final.overflow,
+      targetOverflow: opts.targetOverflow,
       peakDensity: final.peak,
       iterations: last ? last.iter : 0,
       binsX,

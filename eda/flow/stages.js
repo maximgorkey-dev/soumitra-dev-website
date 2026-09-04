@@ -4,6 +4,13 @@
  * belongs to the worker.
  */
 
+/**
+ * Steps a real flow runs *before* this app gets involved. Shown so the pipeline
+ * does not appear to start at a gate-level netlist by magic, and clickable so
+ * the explainer can say where the netlist actually comes from.
+ */
+export const UPSTREAM = [{ id: "synthesis", label: "Synthesis" }];
+
 /** Stages that exist. The order is the flow order and is not negotiable. */
 export const STAGES = [
   { id: "netlist", label: "Netlist" },

@@ -1,0 +1,209 @@
+/* EDA primer. A reading page, so it is a single measured column rather than the
+   three-pane shell the demo uses. Tokens come from /assets/shared.css */
+
+.guide {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 44px 20px 96px;
+}
+
+/* ---------------------------------------------------------------- hero */
+
+.guide-kicker {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+  color: var(--accent-2);
+  margin: 0 0 10px;
+}
+.guide-hero h1 {
+  font-size: clamp(1.9rem, 5vw, 2.6rem);
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  margin: 0 0 18px;
+}
+.guide-lead {
+  font-size: 1.03rem;
+  line-height: 1.7;
+  color: var(--text-dim);
+  margin: 0 0 16px;
+}
+.guide-lead a { color: var(--accent); }
+
+/* ---------------------------------------------------------------- flow strip */
+
+.flow-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 34px 0 8px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.flow-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 7px 12px;
+  border: 1px dashed var(--border);
+  border-radius: 9px;
+  background: var(--surface-2);
+  text-decoration: none;
+  color: var(--text-dim);
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+.flow-chip span { font-size: 0.82rem; font-weight: 600; white-space: nowrap; }
+.flow-chip em {
+  font-family: var(--mono);
+  font-style: normal;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.9px;
+  opacity: 0.75;
+}
+.flow-chip:hover { border-color: var(--accent); color: var(--text); }
+.flow-live {
+  border-style: solid;
+  border-color: rgba(88, 166, 255, 0.4);
+  color: var(--text);
+}
+.flow-live em { color: var(--accent); opacity: 1; }
+
+/* ---------------------------------------------------------------- sections */
+
+.guide-section {
+  margin-top: 46px;
+  padding-top: 28px;
+  border-top: 1px solid var(--border);
+  /* Anchors land under the sticky header without this. */
+  scroll-margin-top: 82px;
+}
+.guide-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.guide-head h2 {
+  font-size: clamp(1.3rem, 3vw, 1.6rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+.guide-section p {
+  font-size: 0.97rem;
+  line-height: 1.75;
+  color: var(--text-dim);
+  margin: 0 0 15px;
+}
+.guide-section p strong { color: var(--text); font-weight: 600; }
+.guide-section code {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 1px 5px;
+  border-radius: 5px;
+  color: var(--text);
+}
+
+.badge {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--danger);
+  border: 1px solid rgba(240, 136, 62, 0.5);
+  border-radius: 999px;
+  padding: 2px 9px;
+  white-space: nowrap;
+}
+.badge-live {
+  color: var(--accent);
+  border-color: rgba(88, 166, 255, 0.5);
+}
+
+/* ---------------------------------------------------------------- spec strip */
+
+.spec {
+  margin: 22px 0;
+  padding: 4px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.spec > div {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: 14px;
+  padding: 9px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.spec > div:last-child { border-bottom: none; }
+.spec dt {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--accent-2);
+  padding-top: 3px;
+}
+.spec dd {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+
+/* ---------------------------------------------------------------- deeper */
+
+.deeper {
+  margin: 22px 0 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 0 20px;
+}
+.deeper > summary {
+  cursor: pointer;
+  padding: 14px 0;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 1.1px;
+  color: var(--accent);
+  font-weight: 500;
+}
+.deeper > summary::marker { color: var(--accent); }
+.deeper[open] > summary { border-bottom: 1px solid var(--border); }
+.deeper[open] { padding-bottom: 6px; }
+.deeper p:first-of-type { margin-top: 16px; }
+.deeper p { font-size: 0.92rem; }
+
+/* ---------------------------------------------------------------- callout */
+
+.callout {
+  margin: 26px 0 6px;
+  padding: 18px 20px 6px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent-2);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--surface);
+}
+.callout h3 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.guide-cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 26px; }
+
+@media (max-width: 620px) {
+  .spec > div { grid-template-columns: minmax(0, 1fr); gap: 3px; }
+  .guide { padding-top: 30px; }
+}
