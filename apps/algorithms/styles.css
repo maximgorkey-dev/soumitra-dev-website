@@ -236,9 +236,128 @@
 .analysis-notes { margin: 0; padding-left: 20px; }
 .analysis-notes li { font-size: 0.93rem; line-height: 1.7; color: var(--text-dim); margin-bottom: 12px; }
 
+/* ---------------------------------------------------------------- run your own */
+
+/* Marks the player as showing a compiled submission rather than the bundled
+   generator. The two are indistinguishable otherwise, which would be confusing
+   the moment someone edits the algorithm and forgets they did. */
+.viz-source {
+  margin-left: 9px;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+
+.run-sig {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 12px !important;
+  font-size: 0.8rem !important;
+}
+.run-sig code {
+  font-family: var(--mono);
+  font-size: 0.79rem;
+  color: var(--accent-2);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 8px;
+}
+.run-sig span { color: var(--text-dim); font-size: 0.76rem; }
+
+.run-hint {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  color: var(--text-dim);
+}
+.run-editor .code-head { padding-right: 6px; }
+
+.run-body {
+  display: block;
+  width: 100%;
+  min-height: 340px;
+  resize: vertical;
+  margin: 0;
+  padding: 12px 14px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  line-height: 1.6;
+  tab-size: 4;
+  /* Long lines scroll rather than wrap: wrapped C++ misleads about structure. */
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+}
+.run-body:focus { outline: none; box-shadow: inset 0 0 0 1px var(--accent); }
+
+.run-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0 0;
+}
+.run-status { font-size: 0.78rem; color: var(--text-dim); }
+.run-status-error { color: var(--danger-2); }
+
+.run-output {
+  margin: 12px 0 0;
+  padding: 12px 14px;
+  max-height: 260px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--danger);
+  border-radius: 9px;
+  background: var(--surface-2);
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  line-height: 1.6;
+  color: var(--text-dim);
+  white-space: pre-wrap;
+}
+
+.run-api { margin: 18px 0 0; }
+.run-api summary {
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--accent);
+  padding: 6px 0;
+}
+.run-api dl {
+  margin: 10px 0 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.run-api dl > div {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  gap: 14px;
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.run-api dl > div:last-child { border-bottom: none; }
+.run-api dt { font-family: var(--mono); font-size: 0.76rem; color: var(--accent-2); }
+.run-api dd { margin: 0; font-size: 0.8rem; color: var(--text-dim); line-height: 1.5; }
+.run-api dt code, .run-api dd code { font-family: var(--mono); font-size: 0.95em; }
+.run-api > p { font-size: 0.8rem !important; margin: 12px 0 0 !important; }
+
 @media (max-width: 900px) {
   .alg-shell { grid-template-columns: minmax(0, 1fr); gap: 20px; }
   .alg-rail { position: static; }
   .alg-rail-note { display: none; }
   .alg-chip { display: none; }
+  .run-api dl > div { grid-template-columns: minmax(0, 1fr); gap: 4px; }
 }

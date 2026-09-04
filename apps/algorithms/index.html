@@ -53,6 +53,7 @@
 
         <div class="viz-caption">
           <span class="viz-phase" id="viz-phase"></span>
+          <span class="viz-source" id="viz-source" hidden></span>
           <p class="viz-note" id="viz-note"></p>
           <p class="viz-detail" id="viz-detail"></p>
         </div>
@@ -88,11 +89,13 @@
           <button class="tab tab-active" role="tab" data-tab="explain" type="button">Explanation</button>
           <button class="tab" role="tab" data-tab="code" type="button">Code</button>
           <button class="tab" role="tab" data-tab="analysis" type="button">Analysis</button>
+          <button class="tab" role="tab" data-tab="run" type="button">Run your own</button>
         </div>
 
         <div class="tab-panel" id="panel-explain"></div>
         <div class="tab-panel" id="panel-code" hidden></div>
         <div class="tab-panel" id="panel-analysis" hidden></div>
+        <div class="tab-panel" id="panel-run" hidden></div>
       </section>
     </section>
   </main>

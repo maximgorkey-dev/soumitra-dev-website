@@ -90,6 +90,36 @@ server {
         add_header Cache-Control "no-store, max-age=0" always;
     }
 
+    # ---- server-side C++ for the algorithms app: owner only ----
+    # This is the one route that compiles and runs submitted code, so it is
+    # gated by the same owner-only subrequest as /_ops/ rather than by the
+    # general allow-list. A signed-in visitor who is not the owner receives 404
+    # and is never told the endpoint exists. Longer prefix than /api/, so it
+    # wins regardless of ordering.
+    location ^~ /api/algorithms/ {
+        auth_request /oauth2/auth-ops;
+        auth_request_set $auth_email $upstream_http_x_auth_request_email;
+        error_page 401 = @json401;
+        error_page 403 = @deny404;
+
+        limit_req zone=cc burst=3 nodelay;
+        client_max_body_size 64k;
+
+        proxy_pass         http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Auth-Email      $auth_email;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+
+        # A compile plus a run is a couple of seconds, and the API itself waits
+        # up to 45s on the runner before giving up.
+        proxy_read_timeout 60s;
+
+        add_header X-Robots-Tag "noindex, nofollow" always;
+        add_header Cache-Control "no-store, max-age=0" always;
+    }
+
     # ---- API for the authenticated apps ----
     location /api/ {
         auth_request /oauth2/auth;

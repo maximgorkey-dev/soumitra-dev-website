@@ -175,6 +175,101 @@ export const kruskal = {
     ],
   },
 
+  /**
+   * The server-side variant. The reference implementation below is written to
+   * be read; this one is written to be edited and run, so it narrates itself
+   * through `viz::Trace` exactly as the JavaScript generator above does.
+   *
+   * Only the body of solve() is sent. The harness owns main(), reads the graph
+   * and constructs the Trace, which is why there are no includes here and no
+   * printing: emit() is the only thing that writes to stdout.
+   */
+  editable: {
+    topic: "mst-kruskal",
+    lang: "cpp",
+    signature: "void solve(const viz::Graph& g, viz::Trace& t)",
+    starter: `// Disjoint-set over the vertices, iterative find with path halving.
+std::vector<int> parent(g.n), size(g.n, 1);
+std::iota(parent.begin(), parent.end(), 0);
+
+auto find = [&](int x) {
+    while (parent[x] != x) { parent[x] = parent[parent[x]]; x = parent[x]; }
+    return x;
+};
+
+auto unite = [&](int a, int b) {
+    a = find(a);
+    b = find(b);
+    if (a == b) return false;                 // already connected: a cycle
+    if (size[a] < size[b]) std::swap(a, b);
+    parent[b] = a;
+    size[a] += size[b];
+    return true;
+};
+
+// Hand the current grouping to the viewer. Two vertices sharing a colour are
+// already connected, so an edge between them is one about to be rejected.
+auto paint = [&] {
+    std::vector<int> group(g.n);
+    for (int v = 0; v < g.n; ++v) group[v] = find(v);
+    t.components(group);
+};
+
+int examined = 0, accepted = 0;
+long long total = 0;
+
+auto counters = [&] {
+    t.metric("Edges examined", std::to_string(examined) + " / " + std::to_string(g.edge_count()));
+    t.metric("Edges in tree", std::to_string(accepted) + " / " + std::to_string(g.n - 1));
+    t.metric("Total weight", total);
+};
+
+// Edge indices ordered by weight. Frames address edges by their position in
+// g.edges, not in this order, because that is how the renderer drew them.
+std::vector<int> order(g.edge_count());
+std::iota(order.begin(), order.end(), 0);
+std::sort(order.begin(), order.end(),
+          [&](int a, int b) { return g.edges[a].w < g.edges[b].w; });
+
+paint();
+counters();
+t.emit("Sort", "Sort all " + std::to_string(g.edge_count()) + " edges by weight, lightest first.");
+t.emit("Initialise", "Every vertex starts as its own component.",
+       "Colours show components.");
+
+for (const int i : order) {
+    const viz::Edge& e = g.edges[i];
+    ++examined;
+
+    t.edge(i, viz::CANDIDATE);
+    counters();
+    t.emit("Scan", "Consider " + g.label(e.u) + "-" + g.label(e.v) +
+                   ", weight " + std::to_string(e.w) + ". Are its ends already connected?");
+
+    if (unite(e.u, e.v)) {
+        t.edge(i, viz::ACCEPTED);
+        total += e.w;
+        ++accepted;
+        paint();
+        counters();
+        t.emit("Scan", "Accept " + g.label(e.u) + "-" + g.label(e.v) +
+                       ". Different components, so it joins them without a cycle.",
+               "Running weight " + std::to_string(total) + ".");
+        if (accepted == g.n - 1) break;       // spanned; the rest is heavier
+    } else {
+        t.edge(i, viz::REJECTED);
+        counters();
+        t.emit("Scan", "Reject " + g.label(e.u) + "-" + g.label(e.v) +
+                       ". Both ends are in the same component, so it would close a cycle.");
+    }
+}
+
+counters();
+t.emit("Done", "Spanning tree complete: " + std::to_string(accepted) +
+               " edges, total weight " + std::to_string(total) + ".");
+`,
+  },
+
   code: {
     lang: "cpp",
     source: `// Kruskal's minimum spanning tree, O(E log E).

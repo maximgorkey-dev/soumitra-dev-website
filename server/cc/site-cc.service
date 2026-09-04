@@ -1,0 +1,71 @@
+[Unit]
+Description=soumitra.dev sandboxed C++ runner for the algorithms app
+After=network.target
+
+[Service]
+Type=simple
+User=sitecc
+Group=sitecc
+WorkingDirectory=/opt/site-cc
+ExecStart=/usr/bin/python3 /opt/site-cc/runner.py
+Restart=always
+RestartSec=3
+
+# ---- resource ceiling ----
+# The whole reason this is a separate unit rather than a function call inside
+# site-api: a g++ run peaks near 110 MB, and site-api is capped at MemoryMax=256M.
+# A compile inside that cgroup would be OOM-killed together with the API, taking
+# notes and flash cards down with it. Here a runaway job can only reach this
+# ceiling, leaving nginx, oauth2-proxy and the API untouched.
+MemoryHigh=320M
+MemoryMax=400M
+CPUQuota=180%
+TasksMax=192
+
+# ---- privilege ----
+# bubblewrap on Debian 13 is not setuid and works through unprivileged user
+# namespaces, so it needs no capabilities on the host side and NoNewPrivileges
+# costs nothing here.
+NoNewPrivileges=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+StateDirectory=site-cc
+ProtectControlGroups=true
+ProtectClock=true
+RestrictRealtime=true
+LockPersonality=true
+UMask=0077
+
+# Three further directives were tried and had to be removed, because each one
+# breaks the sandbox this service exists to build:
+#
+#   ProtectKernelTunables  masks parts of /proc read-only in this service's
+#   ProtectKernelLogs      mount namespace, and the kernel then refuses to let
+#                          bubblewrap mount a fresh procfs inside the jail
+#                          ("Can't mount proc on /proc: Operation not permitted")
+#   RestrictSUIDSGID       seccomp-filters mkdir, which bubblewrap needs for
+#                          every mount point it creates, and the jail dies with
+#                          a misleading ENOSYS ("Function not implemented")
+#
+# Giving them up costs little here. All three guard operations that already
+# require privileges this unit does not have: the uid is unprivileged, the
+# capability bounding set above is empty, and bubblewrap mounts everything
+# nosuid. They would be defence in depth against a privilege escalation that
+# has several other things to get through first.
+
+# ---- network ----
+# The service itself listens on loopback for site-api. The jail gets its own
+# empty network namespace from bwrap, so this is a second, independent barrier
+# enforced by the kernel on the cgroup rather than by the sandbox.
+IPAddressDeny=any
+IPAddressAllow=localhost
+
+# Deliberately NOT set: RestrictNamespaces and SystemCallFilter. bubblewrap
+# needs clone with user, mount, pid, net, ipc and uts flags, plus mount and
+# pivot_root, and either directive would block the sandbox it is here to build.
+
+[Install]
+WantedBy=multi-user.target

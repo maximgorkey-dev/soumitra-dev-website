@@ -9,7 +9,12 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sqlite3
+import threading
+import time
+import urllib.error
+import urllib.request
 import uuid
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta, timezone
@@ -32,6 +37,23 @@ MIN_NOTE_HEIGHT = 140
 MAX_NOTE_HEIGHT = 1600
 MAX_DESIGNS = 100
 MAX_DESIGN_BYTES = 400_000
+
+# Server-side C++ for the algorithms app. Nginx restricts /api/algorithms/ to
+# the owner, so this is not the access control — it is the input contract.
+CC_URL = os.environ.get("SITE_CC_URL", "http://127.0.0.1:8081/run")
+CC_TIMEOUT = 45.0
+CC_TOPICS = {"mst-kruskal", "mst-prim"}
+MAX_CC_BODY = 20_000
+MAX_CC_NODES = 64
+MAX_CC_EDGES = 256
+MAX_CC_WEIGHT = 1_000_000
+CC_RUNS_PER_WINDOW = 10
+CC_RATE_WINDOW = 60.0
+
+# Vertex names are handed to the C++ harness as whitespace-separated tokens, so
+# anything with a space in it would silently desynchronise the graph the program
+# sees from the one on screen.
+CC_LABEL_RE = re.compile(r"^[A-Za-z0-9_.-]{1,16}$")
 
 app = FastAPI(title="soumitra.dev apps API", docs_url=None, redoc_url=None, openapi_url=None)
 
@@ -910,6 +932,141 @@ def delete_design(design_id: str, user: str = User) -> JSONResponse:
         if cur.rowcount == 0:
             raise HTTPException(status_code=404, detail="design not found")
     return JSONResponse(status_code=204, content=None)
+
+
+# --------------------------------------------------------------------------
+# algorithms: server-side C++
+# --------------------------------------------------------------------------
+#
+# This endpoint hands code to a compiler. Two boundaries keep that reasonable,
+# and neither of them is this function.
+#
+# Who may call it is decided in nginx: /api/algorithms/ is gated by
+# /oauth2/auth-ops, the same owner-only subrequest that protects /_ops/, so a
+# signed-in visitor who is not the owner gets a 404 and never learns it exists.
+#
+# What the code may do once compiled is decided by server/cc/runner.py, which
+# runs it under bubblewrap with no network namespace, no writable filesystem and
+# hard resource limits.
+#
+# What is left for this function is the input contract: bound the payload, and
+# make sure the graph the program is given is the graph that was drawn.
+
+class GraphNodeIn(BaseModel):
+    id: str = Field(min_length=1, max_length=16)
+
+
+class GraphEdgeIn(BaseModel):
+    u: str = Field(min_length=1, max_length=16)
+    v: str = Field(min_length=1, max_length=16)
+    w: int
+
+
+class AlgoRunIn(BaseModel):
+    topic: str = Field(min_length=1, max_length=60)
+    body: str = Field(max_length=MAX_CC_BODY)
+    nodes: list[GraphNodeIn]
+    edges: list[GraphEdgeIn]
+
+
+_cc_hits: dict[str, list[float]] = {}
+_cc_lock = threading.Lock()
+
+
+def cc_rate_check(user: str) -> None:
+    """
+    A compile costs a second of CPU and 110 MB on a box with under 500 MB spare,
+    so the cost of a stuck retry loop in the browser is real even with a single
+    authorised caller. In-process and per-worker, which is sufficient: there is
+    one uvicorn worker, and the runner independently refuses concurrent jobs.
+    """
+    now = time.monotonic()
+    with _cc_lock:
+        hits = [t for t in _cc_hits.get(user, []) if now - t < CC_RATE_WINDOW]
+        if len(hits) >= CC_RUNS_PER_WINDOW:
+            wait = int(CC_RATE_WINDOW - (now - hits[0])) + 1
+            raise HTTPException(status_code=429, detail=f"too many runs; try again in {wait}s")
+        hits.append(now)
+        _cc_hits[user] = hits
+
+
+def cc_normalise_graph(payload: AlgoRunIn) -> tuple[int, list[list[int]], list[str]]:
+    """
+    Turn the drawn graph into what the harness reads on stdin: a vertex count,
+    edges as 0-based index triples, and the labels in vertex order. Edge order is
+    preserved because frames address edges by their index in this list, and the
+    renderer drew them in the same order.
+    """
+    if not payload.nodes:
+        raise HTTPException(status_code=400, detail="the graph has no vertices")
+    if len(payload.nodes) > MAX_CC_NODES:
+        raise HTTPException(status_code=400, detail=f"at most {MAX_CC_NODES} vertices")
+    if len(payload.edges) > MAX_CC_EDGES:
+        raise HTTPException(status_code=400, detail=f"at most {MAX_CC_EDGES} edges")
+
+    index: dict[str, int] = {}
+    labels: list[str] = []
+    for node in payload.nodes:
+        name = node.id.strip()
+        if not CC_LABEL_RE.match(name):
+            raise HTTPException(status_code=400, detail=f"unusable vertex name {node.id!r}")
+        if name in index:
+            raise HTTPException(status_code=400, detail=f"duplicate vertex {name!r}")
+        index[name] = len(labels)
+        labels.append(name)
+
+    edges: list[list[int]] = []
+    for edge in payload.edges:
+        if edge.u not in index or edge.v not in index:
+            raise HTTPException(status_code=400, detail="an edge refers to an unknown vertex")
+        if abs(edge.w) > MAX_CC_WEIGHT:
+            raise HTTPException(status_code=400, detail="an edge weight is out of range")
+        edges.append([index[edge.u], index[edge.v], edge.w])
+
+    return len(labels), edges, labels
+
+
+@app.post("/api/algorithms/run")
+def run_algorithm(payload: AlgoRunIn, user: str = User) -> dict[str, Any]:
+    if payload.topic not in CC_TOPICS:
+        raise HTTPException(status_code=400, detail=f"no server-side runner for {payload.topic!r}")
+    if not payload.body.strip():
+        raise HTTPException(status_code=400, detail="there is nothing to compile")
+
+    # The harness owns the preprocessor, so a body carrying its own directives
+    # has misread the contract. Saying so is worth a clear error. It is not a
+    # security check and is not relied on as one: #include cannot reach anything
+    # interesting from inside the sandbox anyway.
+    for directive in ("#include", "#pragma"):
+        if directive in payload.body:
+            raise HTTPException(
+                status_code=400,
+                detail=f"remove the {directive} — the harness supplies the standard headers",
+            )
+
+    n, edges, labels = cc_normalise_graph(payload)
+    cc_rate_check(user)
+
+    request = urllib.request.Request(
+        CC_URL,
+        data=json.dumps({"topic": payload.topic, "body": payload.body,
+                         "n": n, "edges": edges, "labels": labels}).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=CC_TIMEOUT) as response:
+            return json.loads(response.read())
+    except urllib.error.HTTPError as exc:
+        # The runner answers refusals with a JSON body of the same shape, so pass
+        # its explanation through rather than flattening it to a bare 502.
+        try:
+            return json.loads(exc.read())
+        except (ValueError, OSError):
+            raise HTTPException(status_code=502, detail="the runner returned an unreadable error")
+    except (urllib.error.URLError, TimeoutError, OSError):
+        raise HTTPException(status_code=503, detail="the compiler service is not responding")
 
 
 @app.get("/api/health")
