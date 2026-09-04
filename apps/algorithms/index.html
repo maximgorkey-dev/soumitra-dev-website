@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Algorithms — soumitra.dev</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/apps/vendor/highlight-theme.min.css" />
+  <link rel="stylesheet" href="/assets/shared.css" />
+  <link rel="stylesheet" href="/apps/algorithms/styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header-inner alg-header">
+      <a class="app-brand" href="/apps/">
+        <span class="app-brand-mark">SM</span>
+        <span>soumitra.dev</span>
+      </a>
+      <span class="alg-chip">Algorithms</span>
+      <div class="app-user">
+        <span id="user-email" class="app-user-email"></span>
+        <a class="app-btn app-btn-ghost app-btn-sm" href="/apps/">All apps</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="alg-shell">
+    <!-- ------------------------------------------------ catalogue -->
+    <aside class="alg-rail">
+      <nav id="catalog" class="catalog"></nav>
+      <p class="alg-rail-note">
+        More sections will live here — data structures, design patterns. The catalogue is grouped, so
+        they slot in beside this one.
+      </p>
+    </aside>
+
+    <!-- ------------------------------------------------ workspace -->
+    <section class="alg-main">
+      <header class="alg-title-row">
+        <div>
+          <p class="alg-eyebrow" id="alg-topic"></p>
+          <h1 class="alg-title" id="alg-title"></h1>
+          <p class="alg-blurb" id="alg-blurb"></p>
+        </div>
+      </header>
+
+      <!-- visualisation -->
+      <section class="viz">
+        <div class="viz-stage" id="viz-stage"></div>
+
+        <div class="viz-caption">
+          <span class="viz-phase" id="viz-phase"></span>
+          <p class="viz-note" id="viz-note"></p>
+          <p class="viz-detail" id="viz-detail"></p>
+        </div>
+
+        <div class="viz-metrics" id="viz-metrics"></div>
+
+        <div class="viz-controls">
+          <button class="app-btn app-btn-ghost app-btn-sm" id="btn-first" type="button" aria-label="First step">|&lt;</button>
+          <button class="app-btn app-btn-ghost app-btn-sm" id="btn-prev" type="button" aria-label="Previous step">&lt;</button>
+          <button class="app-btn app-btn-primary app-btn-sm" id="btn-play" type="button">Play</button>
+          <button class="app-btn app-btn-ghost app-btn-sm" id="btn-next" type="button" aria-label="Next step">&gt;</button>
+          <button class="app-btn app-btn-ghost app-btn-sm" id="btn-last" type="button" aria-label="Last step">&gt;|</button>
+
+          <input class="viz-scrub" type="range" id="scrub" min="0" max="0" step="1" value="0"
+                 aria-label="Step" />
+          <output class="viz-counter" id="counter">0 / 0</output>
+
+          <label class="viz-speed">
+            <span>Speed</span>
+            <select class="app-select app-select-sm" id="speed">
+              <option value="1400">Slow</option>
+              <option value="800" selected>Steady</option>
+              <option value="350">Brisk</option>
+              <option value="120">Fast</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <!-- explanation / code / analysis -->
+      <section class="tabs">
+        <div class="tab-bar" role="tablist">
+          <button class="tab tab-active" role="tab" data-tab="explain" type="button">Explanation</button>
+          <button class="tab" role="tab" data-tab="code" type="button">Code</button>
+          <button class="tab" role="tab" data-tab="analysis" type="button">Analysis</button>
+        </div>
+
+        <div class="tab-panel" id="panel-explain"></div>
+        <div class="tab-panel" id="panel-code" hidden></div>
+        <div class="tab-panel" id="panel-analysis" hidden></div>
+      </section>
+    </section>
+  </main>
+
+  <div class="app-toast" id="toast"></div>
+
+  <script src="/apps/vendor/highlight.min.js"></script>
+  <script type="module" src="/apps/algorithms/app.js"></script>
+</body>
+</html>
