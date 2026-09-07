@@ -28,22 +28,22 @@ const reloadSoon = debounce(() => loadNotes().catch((e) => toast(e.message, true
 
 /* ---------- checklist handling ---------- */
 
+/* Claimed before the shared renderer's list rules run, because `- [ ] task`
+   also matches the bullet pattern. Emitted without stray whitespace: .note-body
+   is `white-space: pre-wrap`, so markup indentation would show on the page. */
+function checkLineHTML(seg) {
+  const m = seg.line.match(CHECK_RE);
+  if (!m) return null;
+  const done = m[2].toLowerCase() === "x";
+  return `<div class="check-line">` +
+    `<button class="check-box ${done ? "check-box-on" : ""}" data-check="${seg.index}" aria-label="toggle">${done ? "&#10003;" : ""}</button>` +
+    `<span class="${done ? "check-done" : ""}">${renderInline(m[3])}</span>` +
+    `</div>`;
+}
+
 function renderBody(body) {
   if (!body) return "";
-  return parseBlocks(body)
-    .map((seg) => {
-      if (seg.type === "code") return codeBlockHTML(seg.lang, seg.code);
-
-      const m = seg.line.match(CHECK_RE);
-      if (!m) return `<div>${renderInline(seg.line) || "&nbsp;"}</div>`;
-      const done = m[2].toLowerCase() === "x";
-      return `
-        <div class="check-line">
-          <button class="check-box ${done ? "check-box-on" : ""}" data-check="${seg.index}" aria-label="toggle">${done ? "&#10003;" : ""}</button>
-          <span class="${done ? "check-done" : ""}">${renderInline(m[3])}</span>
-        </div>`;
-    })
-    .join("");
+  return renderBlocks(body, { line: checkLineHTML });
 }
 
 function toggleCheckLine(body, index) {
@@ -410,8 +410,9 @@ async function editNote(id) {
       {
         name: "body",
         label: "Body",
-        hint: "- [ ] makes a checklist, ```cpp fences a code block",
+        hint: "use the toolbar, or ? for the syntax",
         type: "textarea",
+        markdown: true,
         rows: 14,
         value: note.body,
       },
@@ -502,6 +503,10 @@ el("composer-form").addEventListener("submit", submitComposer);
 el("composer-body").addEventListener("keydown", (e) => {
   if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submitComposer(e);
 });
+
+/* Below the textarea rather than above it, so the toolbar does not wedge itself
+   between the title and the body. */
+attachMarkdownEditor(el("composer-body"), { place: "after" });
 
 el("search").addEventListener("input", (e) => {
   searchTerm = e.target.value.trim();
