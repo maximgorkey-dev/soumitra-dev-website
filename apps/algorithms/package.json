@@ -1,0 +1,6 @@
+{
+  "name": "algorithms-topics",
+  "private": true,
+  "type": "module",
+  "description": "Not a package. Present so node treats topics/*.js as ES modules when validate.mjs imports them; the browser loads them as modules regardless."
+}
