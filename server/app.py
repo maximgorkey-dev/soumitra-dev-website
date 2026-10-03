@@ -10,10 +10,12 @@ from __future__ import annotations
 import json
 import os
 import re
+import secrets
 import sqlite3
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 from contextlib import contextmanager
@@ -21,8 +23,8 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query
-from fastapi.responses import JSONResponse
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
 
 DB_PATH = Path(os.environ.get("SITE_API_DB", "/var/lib/site-api/data.db"))
@@ -132,6 +134,17 @@ CREATE TABLE IF NOT EXISTS designs (
   updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_designs_owner ON designs (owner, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS files (
+  id TEXT PRIMARY KEY,
+  owner TEXT NOT NULL,
+  name TEXT NOT NULL,
+  mime TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  inline INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_files_owner ON files (owner);
 """
 
 
@@ -1067,6 +1080,101 @@ def run_algorithm(payload: AlgoRunIn, user: str = User) -> dict[str, Any]:
             raise HTTPException(status_code=502, detail="the runner returned an unreadable error")
     except (urllib.error.URLError, TimeoutError, OSError):
         raise HTTPException(status_code=503, detail="the compiler service is not responding")
+
+
+# --------------------------------------------------------------------------
+# file attachments: images and files pasted into notes
+# --------------------------------------------------------------------------
+
+FILES_DIR = Path(os.environ.get("SITE_API_FILES", str(DB_PATH.parent / "files")))
+MAX_FILE_BYTES = 10 * 1024 * 1024
+MAX_USER_BYTES = 500 * 1024 * 1024
+FILE_ID_RE = re.compile(r"^[0-9a-f]{32}$")
+MIME_RE = re.compile(r"^[a-z0-9.+-]+/[a-z0-9.+-]+$")
+
+# A file is shown inline only when its bytes say it is one of these. The
+# client's Content-Type is a claim, not evidence, and SVG is deliberately
+# absent because it can carry script.
+IMAGE_MAGIC = (
+    (b"\x89PNG\r\n\x1a\n", "image/png"),
+    (b"\xff\xd8\xff", "image/jpeg"),
+    (b"GIF87a", "image/gif"),
+    (b"GIF89a", "image/gif"),
+)
+
+
+def sniff_image(head: bytes) -> str | None:
+    for magic, mime in IMAGE_MAGIC:
+        if head.startswith(magic):
+            return mime
+    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
+def clean_filename(raw: str | None) -> str:
+    name = urllib.parse.unquote(raw or "").replace("\\", "/").rsplit("/", 1)[-1]
+    name = re.sub(r'[\x00-\x1f\x7f"]', "", name).strip()
+    return (name or "file")[:120]
+
+
+@app.post("/api/files", status_code=201)
+async def upload_file(
+    request: Request,
+    user: str = User,
+    x_file_name: str | None = Header(default=None),
+) -> dict[str, Any]:
+    data = await request.body()
+    if not data:
+        raise HTTPException(status_code=400, detail="empty upload")
+    if len(data) > MAX_FILE_BYTES:
+        raise HTTPException(status_code=413, detail=f"files are limited to {MAX_FILE_BYTES // 2**20} MB")
+
+    name = clean_filename(x_file_name)
+    image = sniff_image(data[:16])
+    claimed = (request.headers.get("content-type") or "").split(";")[0].strip().lower()
+    mime = image or (claimed if MIME_RE.match(claimed) else "application/octet-stream")
+
+    with db() as conn:
+        used = conn.execute("SELECT COALESCE(SUM(size), 0) FROM files WHERE owner = ?", (user,)).fetchone()[0]
+        if used + len(data) > MAX_USER_BYTES:
+            raise HTTPException(status_code=413, detail=f"storage quota of {MAX_USER_BYTES // 2**20} MB reached")
+        file_id = secrets.token_hex(16)
+        FILES_DIR.mkdir(parents=True, exist_ok=True)
+        tmp = FILES_DIR / f".{file_id}.tmp"
+        tmp.write_bytes(data)
+        tmp.replace(FILES_DIR / file_id)
+        conn.execute(
+            "INSERT INTO files (id, owner, name, mime, size, inline, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (file_id, user, name, mime, len(data), 1 if image else 0, now_iso()),
+        )
+
+    return {"id": file_id, "url": f"/api/files/{file_id}", "name": name, "mime": mime,
+            "size": len(data), "inline": bool(image)}
+
+
+@app.get("/api/files/{file_id}")
+def get_file(file_id: str, user: str = User) -> FileResponse:
+    row = None
+    if FILE_ID_RE.match(file_id):
+        with db() as conn:
+            row = conn.execute("SELECT * FROM files WHERE id = ? AND owner = ?", (file_id, user)).fetchone()
+    path = FILES_DIR / file_id
+    # Someone else's file is indistinguishable from a missing one.
+    if not row or not path.is_file():
+        raise HTTPException(status_code=404, detail="not found")
+
+    inline = bool(row["inline"])
+    return FileResponse(
+        path,
+        media_type=row["mime"] if inline else "application/octet-stream",
+        headers={
+            "Content-Disposition": f"{'inline' if inline else 'attachment'}; filename*=UTF-8''{urllib.parse.quote(row['name'])}",
+            "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": "default-src 'none'; sandbox",
+            "Cache-Control": "private, max-age=31536000, immutable",
+        },
+    )
 
 
 @app.get("/api/health")

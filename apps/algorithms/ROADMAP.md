@@ -1,5 +1,9 @@
 # Algorithms section — build roadmap
 
+> **2026-10-03:** the second account is no longer available for personal work,
+> so the "other account writes the content" split below no longer applies. See
+> `apps/BACKLOG.md`. The renderer, contract and validator plan still stands.
+
 Written 2026-09-13, to be executed around the end of the month. The point of
 this document is that a future session can pick the work up without
 re-deriving anything, because both accounts are working to a token budget.

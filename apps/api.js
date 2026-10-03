@@ -93,6 +93,11 @@ function renderInline(s) {
 
   out = out.replace(/`([^`\n]+)`/g, (_, code) => hold(`<code>${code}</code>`));
 
+  // Images only from this site's own uploads: an arbitrary image URL would let
+  // a note report to a third party every time it is opened.
+  out = out.replace(/!\[([^\]\n]*)\]\((\/api\/files\/[0-9a-f]{32})\)/g, (_, alt, src) =>
+    hold(`<a class="rt-img-link" href="${src}" target="_blank" rel="noopener"><img class="rt-img" src="${src}" alt="${alt}" loading="lazy" /></a>`));
+
   out = out.replace(/\[([^\]\n]*)\]\(([^)\s]+)\)/g, (whole, text, url) => {
     const href = safeURL(url);
     return href ? link(href, text || href) : whole;
@@ -595,6 +600,75 @@ function mdFence(ta) {
   replaceRange(ta, s, e, text, at, at);
 }
 
+/* ---------- attachments ---------- */
+
+const MAX_UPLOAD = 10 * 1024 * 1024;
+
+function formatBytes(n) {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
+async function uploadFile(file, name) {
+  if (file.size > MAX_UPLOAD) throw new Error(`${name} is larger than ${formatBytes(MAX_UPLOAD)}`);
+  const res = await fetch("/api/files", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": file.type || "application/octet-stream",
+      "X-File-Name": encodeURIComponent(name),
+    },
+    body: file,
+  });
+  if (res.status === 401) {
+    window.location.href = "/oauth2/start?rd=" + encodeURIComponent(window.location.pathname);
+    throw new Error("session expired");
+  }
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error((data && data.detail) || `upload failed (${res.status})`);
+  return data;
+}
+
+/**
+ * Upload files and drop markdown for them at the caret. A placeholder goes in
+ * first and is swapped once the upload lands, so typing can carry on meanwhile.
+ */
+async function insertUploads(ta, files) {
+  for (const file of files) {
+    // Pasted screenshots all arrive as "image.png"; give them distinct names.
+    const ext = (file.name || "").split(".").pop() || "png";
+    const name = !file.name || /^image\.\w+$/i.test(file.name)
+      ? `pasted-${new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "")}.${ext}`
+      : file.name;
+    const label = name.replace(/[[\]]/g, "");
+    const token = `[uploading ${label}…]`;
+    replaceRange(ta, ta.selectionStart, ta.selectionEnd, files.length > 1 ? `${token}\n` : token);
+
+    let md = "";
+    try {
+      const f = await uploadFile(file, name);
+      md = f.inline ? `![${label}](${f.url})` : `[📎 ${label} (${formatBytes(f.size)})](${f.url})`;
+    } catch (err) {
+      toast(err.message || "upload failed", true);
+    }
+    const at = ta.value.indexOf(token);
+    if (at >= 0) replaceRange(ta, at, at + token.length, md);
+    else if (md) replaceRange(ta, ta.value.length, ta.value.length, `\n${md}`);
+  }
+}
+
+function pickFiles(ta) {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.multiple = true;
+  input.addEventListener("change", () => {
+    if (input.files.length) insertUploads(ta, [...input.files]);
+  });
+  input.click();
+}
+
 const MD_HELP_ROWS = [
   ["**bold**", "bold"],
   ["*italic*", "italic"],
@@ -637,6 +711,7 @@ function attachMarkdownEditor(ta, { place = "before" } = {}) {
     <span class="md-sep"></span>
     <button type="button" class="md-btn" data-md="link" title="Link (Ctrl+K)">&#128279;</button>
     <button type="button" class="md-btn md-mono" data-md="fence" title="Code block">&#123;&#125;</button>
+    <button type="button" class="md-btn" data-md="attach" title="Attach an image or file (or paste / drop one)">&#128206;</button>
     <span class="md-sep"></span>
     <span class="md-wrap">
       <button type="button" class="md-btn" data-pop="fg" title="Text colour">A<span class="md-caret">&#9662;</span></button>
@@ -671,7 +746,18 @@ function attachMarkdownEditor(ta, { place = "before" } = {}) {
     check: () => mdLines(ta, "check"),
     link: () => mdLink(ta),
     fence: () => mdFence(ta),
+    attach: () => pickFiles(ta),
   };
+
+  ta.addEventListener("dragover", (e) => {
+    if (e.dataTransfer && [...e.dataTransfer.types].includes("Files")) e.preventDefault();
+  });
+  ta.addEventListener("drop", (e) => {
+    const files = [...((e.dataTransfer && e.dataTransfer.files) || [])];
+    if (!files.length) return;
+    e.preventDefault();
+    insertUploads(ta, files);
+  });
 
   bar.addEventListener("mousedown", (e) => {
     // Keep the textarea's selection alive; the buttons act on it.
@@ -746,6 +832,16 @@ function attachMarkdownEditor(ta, { place = "before" } = {}) {
 
     const html = data.getData("text/html");
     const plain = data.getData("text/plain");
+
+    // A screenshot or a copied file. Spreadsheets put an image of the cells on
+    // the clipboard alongside the text, so text wins whenever there is any.
+    const files = [...(data.files || [])];
+    if (files.length && !plain.trim()) {
+      e.preventDefault();
+      insertUploads(ta, files);
+      return;
+    }
+
     let text = null;
     let images = 0;
 
@@ -767,7 +863,7 @@ function attachMarkdownEditor(ta, { place = "before" } = {}) {
     e.preventDefault();
     replaceRange(ta, ta.selectionStart, ta.selectionEnd, text);
     if (images) {
-      toast(`Pasted as text — ${images} image${images > 1 ? "s" : ""} skipped for now.`);
+      toast(`Pasted as text — ${images} embedded image${images > 1 ? "s" : ""} skipped. Paste an image on its own to attach it.`);
     }
   });
 }
