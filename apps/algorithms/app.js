@@ -20,6 +20,11 @@ const VIEWS = { graph: createGraphView, objects: createObjectsView };
 /** Which tab panels exist, in bar order. */
 const PANELS = ["explain", "code", "analysis", "run"];
 
+/* One engine, several apps: each page names the catalogue section it shows,
+   so /apps/patterns/ and /apps/algorithms/ share every line of this file. */
+const SECTION = document.body.dataset.section || "Algorithms";
+const TOPICS = ALGORITHMS.filter((a) => a.section === SECTION);
+
 const state = {
   algorithm: null,
   frames: [],
@@ -41,7 +46,7 @@ const esc = (s) =>
   String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 function renderCatalog() {
-  el("catalog").innerHTML = grouped()
+  el("catalog").innerHTML = grouped(TOPICS)
     .map(
       (s) => `
       <div class="cat-section">
@@ -80,7 +85,7 @@ function markSelected(id) {
 
 function select(id) {
   const alg = byId(id);
-  if (!alg) return;
+  if (!alg || alg.section !== SECTION) return;
 
   stop();
   state.algorithm = alg;
@@ -468,7 +473,8 @@ function boot() {
   initControls();
 
   const fromHash = window.location.hash.slice(1);
-  select(ALGORITHMS.some((a) => a.id === fromHash) ? fromHash : DEFAULT_ID);
+  const fallback = TOPICS.some((a) => a.id === DEFAULT_ID) ? DEFAULT_ID : TOPICS[0].id;
+  select(TOPICS.some((a) => a.id === fromHash) ? fromHash : fallback);
 
   fetch("/api/me", { credentials: "same-origin" })
     .then((r) => (r.ok ? r.json() : null))

@@ -57,9 +57,9 @@ export const DEFAULT_ID = kruskal.id;
 export const byId = (id) => ALGORITHMS.find((a) => a.id === id) || null;
 
 /** [{ section, topics: [{ topic, items: [...] }] }], in insertion order. */
-export function grouped() {
+export function grouped(items = ALGORITHMS) {
   const sections = new Map();
-  for (const a of ALGORITHMS) {
+  for (const a of items) {
     if (!sections.has(a.section)) sections.set(a.section, new Map());
     const topics = sections.get(a.section);
     if (!topics.has(a.topic)) topics.set(a.topic, []);

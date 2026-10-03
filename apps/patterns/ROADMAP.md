@@ -23,10 +23,13 @@ CRTP, policy-based design and type erasure.
 
 ## Decisions
 
-- **Lives inside the algorithms app** as a second section, `section: "Design
-  patterns"`, not as a new app. The app already supports sections, a
-  step-through player built on `core/trace.js` frames, a code panel and the
-  auth wall. Nothing about login, routing or nginx changes.
+- **Its own app, the algorithms engine.** `/apps/patterns/` is a page with
+  `<body data-section="Design patterns">` that loads `apps/algorithms/app.js`,
+  which shows only that section. Topics, views and the player stay in
+  `apps/algorithms/`, so fixes reach both apps. `patterns/index.html` is
+  generated from `algorithms/index.html` by a sed in the commit that added
+  it (title, chip, rail note, section, no "Run your own" tab); regenerate it
+  the same way if the algorithms page changes.
 - **One new view per kind of picture**, not one per pattern:
   - `views/objects.js` shows objects, their links (owns, refers to,
     implements) and a message travelling along a link. It covers every
