@@ -1,22 +1,10 @@
 /**
- * Strategy, the pilot for the design-patterns section.
- *
- * The frame contract every pattern copies (read by views/objects.js):
- *   marks.objects  [{ id, label, stereo?, lines: [string | { t, add }], x, y, role, state? }]
- *                  x, y are the box centre, normalised 0..1.
- *                  role: client | interface | concrete | code
- *                  state: idle | active | edited | new | dim | dispatch
- *   marks.links    [{ from, to, kind, label?, state? }]
- *                  kind: implements | owns | ref | calls | uses
- *   marks.msg      { from, to, label, back? } — one call or return in flight
- *   metrics        a "printed" row holds the line the C++ prints at that step,
- *                  in program order; the self-test checks those rows against
- *                  the real program's output.
+ * Strategy, the pilot for the design-patterns section. The frame fields are
+ * documented in pat-common.js.
  */
 
 import { frame } from "../core/trace.js";
-
-export const OBJECTS = { kind: "objects" };
+import { OBJECTS, add, printed } from "./pat-common.js";
 
 /* ---------------------------------------------------------------- */
 /* the C++                                                           */
@@ -194,8 +182,6 @@ int main() {
 /* scenes                                                            */
 /* ---------------------------------------------------------------- */
 
-const add = (t) => ({ t, add: true });
-
 function beforeScene(edited) {
   const st = (id) => (edited.has(id) ? "edited" : "idle");
   const sw = (id, extra) => [
@@ -348,14 +334,14 @@ function* run() {
       phase: "Run",
       note: `${CONCRETE[r.id].label} returns a fee of ${r.fee}, and label() returns "${r.label}".`,
       marks: scene({ checkout: "active", [r.id]: "active" }, { from: r.id, to: "checkout", label: `${r.fee}, "${r.label}"`, back: true }),
-      metrics: m([{ label: "fee", value: String(r.fee) }, { label: "printed", value: `paying by ${r.label}` }]),
+      metrics: m([{ label: "fee", value: String(r.fee) }, printed(`paying by ${r.label}`)]),
     });
 
     yield frame({
       phase: "Run",
       note: `method_->pay(${total}) hands over the total.`,
       marks: scene({ checkout: "active", iface: "dispatch", [r.id]: "active" }, { from: "checkout", to: r.id, label: `pay(${total})` }),
-      metrics: m([{ label: "fee", value: String(r.fee) }, { label: "printed", value: r.printed }]),
+      metrics: m([{ label: "fee", value: String(r.fee) }, printed(r.printed)]),
     });
   }
 
@@ -380,11 +366,29 @@ export const strategy = {
   run,
 
   explanation: [
-    "Strategy is the pattern most of the others are built on, which is why it comes first. The problem it solves is a piece of behaviour that comes in several versions — ways to pay, ways to compress, ways to price — where the code that uses it should not care which version it has.",
-    "The tell-tale sign that you need it is the same switch statement appearing in several places. Each switch is one behaviour, and each case is one version. That layout groups the code by operation, so everything about a single version (a payment method, say) is scattered across the switches. Adding a version means visiting every one of them, and the compiler will not tell you if you missed one.",
-    "Strategy turns the layout around. Each version becomes a class that implements all the operations, behind one interface. The caller holds a pointer or reference to the interface and calls through it; which version runs is decided by which object it was given. Adding a version is writing one new class, and nothing existing is touched.",
-    "The cost is the reverse trade. Adding a version got cheap, but adding an operation got expensive: a new method on the interface has to be written in every class. If your versions are fixed and your operations keep growing, the switch layout (or std::variant with std::visit) is the better fit. Visitor, later in this section, is exactly that situation.",
-    "In modern C++ a strategy does not have to be a class hierarchy. If the varying behaviour is a single function, a std::function or a lambda is a strategy, with value semantics and no heap object to manage. If the choice is known at compile time, a template parameter constrained by a concept gives the same separation with no virtual call at all. The Code tab shows all three.",
+    { tip: "**In one line:** put each version of a behaviour in its own class behind one interface, and let the caller hold whichever version it is given." },
+    "Strategy is the pattern most of the others are built on, which is why it comes first. It solves one problem: a behaviour that comes in **several versions** — ways to pay, ways to compress, ways to price — where the code using it should not care which version it has.",
+    { h: "The smell" },
+    { list: [
+      "The **same `switch` appears in several places**, each one switching on the same enum.",
+      "Each switch is one *operation*, and each case is one *version*. So everything about a single version (one payment method) is **scattered** across all the switches.",
+      "Adding a version means **finding every switch**. Miss one and it still compiles — `-Wall` only warns.",
+    ] },
+    { h: "The fix" },
+    { list: [
+      "Each version becomes a **class** implementing every operation, behind **one interface**.",
+      "The caller holds a pointer to the **interface** and calls through it. Which version runs depends only on **which object it was given**.",
+      "Adding a version is **writing one new class**. Nothing that exists is edited — the *open/closed principle*.",
+      "The object can be **swapped at run time** (`setMethod`), and the caller never notices.",
+    ] },
+    { h: "The price" },
+    "It is a trade, not a free win. Adding a **version** got cheap, but adding an **operation** got expensive: a new method on the interface must be written in every class. If versions are fixed and operations keep growing, prefer the switch layout — or `std::variant` with `std::visit`. **Visitor**, later in this app, is exactly that situation.",
+    { h: "Modern C++" },
+    { list: [
+      "If the behaviour is **one function**, a `std::function` or lambda *is* a strategy: value semantics, no base class, no heap object to manage.",
+      "If the choice is **known at compile time**, a template parameter constrained by a **concept** gives the same separation with no virtual call at all — but no run-time swapping.",
+      "The Code tab shows all three versions side by side.",
+    ] },
   ],
 
   analysis: {
@@ -405,7 +409,7 @@ export const strategy = {
     lang: "cpp",
     files: [
       { name: "before.cpp", note: "The problem: one enum, a switch per behaviour.", source: BEFORE },
-      { name: "strategy.cpp", note: "The classic pattern, which the animation follows.", source: AFTER },
+      { name: "strategy.cpp", note: "The classic pattern, which the animation follows.", source: AFTER, traced: true },
       { name: "modern.cpp", note: "The same idea with std::function, and at compile time with a concept.", source: MODERN },
     ],
   },

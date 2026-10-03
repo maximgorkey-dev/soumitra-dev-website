@@ -152,10 +152,20 @@ export function createObjectsView(root) {
         class: m.back ? "ov-msg ov-msg-ret" : "ov-msg",
         "marker-end": m.back ? "url(#ov-arrow-ret)" : "url(#ov-arrow-msg)",
       }));
-      const mx = (p.x + q.x) / 2 + nx * 1.6;
-      const my = (p.y + q.y) / 2 + ny * 1.6;
-      const chip = make("g", { class: m.back ? "ov-chip ov-chip-ret" : "ov-chip" });
+      // Slide the label outward along the normal until it clears every box;
+      // boxes in a tight row would otherwise hide it.
       const cw = m.label.length * CHAR + 16;
+      const ux = nx / Math.abs(off);
+      const uy = ny / Math.abs(off);
+      const clear = (x, y) => [...boxes.values()].every((b) =>
+        Math.abs(x - b.cx) > (b.w + cw) / 2 + 4 || Math.abs(y - b.cy) > (b.h + 22) / 2 + 4);
+      let mx = (p.x + q.x) / 2 + nx * 1.6;
+      let my = (p.y + q.y) / 2 + ny * 1.6;
+      for (let k = 1; k <= 14 && !clear(mx, my); k++) {
+        mx = (p.x + q.x) / 2 + ux * (Math.abs(off) * 1.6 + k * 10);
+        my = (p.y + q.y) / 2 + uy * (Math.abs(off) * 1.6 + k * 10);
+      }
+      const chip = make("g", { class: m.back ? "ov-chip ov-chip-ret" : "ov-chip" });
       chip.appendChild(make("rect", { x: mx - cw / 2, y: my - 11, width: cw, height: 22, rx: 6 }));
       chip.appendChild(make("text", { x: mx, y: my + 4, "text-anchor": "middle" }, m.label));
       msgLayer.appendChild(chip);

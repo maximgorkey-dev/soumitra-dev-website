@@ -1,10 +1,16 @@
 # Design patterns in C++ — build roadmap
 
-Status: batch 0 shipped 2026-10-03 (objects view, section, Strategy). Next:
-batch 1. The frame fields every pattern copies are documented at the top of
-`apps/algorithms/topics/pat-strategy.js`; the self-test pattern (compile each
-listing, compare its output with the frames' "printed" rows) is in the commit
-that added it.
+Status (2026-10-04): batches 0–4 shipped — 11 animated patterns, the objects
+view and the memory view. Next: batch 5.
+
+- Frame fields for both views, and the explanation block format, are
+  documented in `apps/algorithms/topics/pat-common.js`.
+- Self-test: `tools/patterns-selftest.sh` on the VM. It records every topic,
+  checks every box/link/pointer reference, compiles every listing with
+  `g++ -std=c++20 -Wall -Wextra -Werror`, and diffs the file marked
+  `traced: true` against the frames' "printed" rows. Pass `show` to print all
+  program output, and a topic id as the second argument to stage a temporary
+  public preview at `/eda/_ovt/?t=<id>&f=1,2,3` (delete it afterwards).
 
 Goal: learn patterns by *seeing* them, classic and modern, in C++. Every
 animated pattern answers three questions in this order:

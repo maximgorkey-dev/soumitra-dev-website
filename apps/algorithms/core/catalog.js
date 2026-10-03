@@ -35,6 +35,16 @@ import { euler } from "../topics/euler-circuit.js";
 import { diameter } from "../topics/tree-diameter.js";
 
 import { strategy } from "../topics/pat-strategy.js";
+import { observer } from "../topics/pat-observer.js";
+import { command } from "../topics/pat-command.js";
+import { state } from "../topics/pat-state.js";
+import { decorator } from "../topics/pat-decorator.js";
+import { composite } from "../topics/pat-composite.js";
+import { visitor } from "../topics/pat-visitor.js";
+import { raii } from "../topics/pat-raii.js";
+import { crtp } from "../topics/pat-crtp.js";
+import { typeErasure } from "../topics/pat-type-erasure.js";
+import { variant } from "../topics/pat-variant.js";
 
 export const ALGORITHMS = [
   bfs, dfs,
@@ -47,7 +57,9 @@ export const ALGORITHMS = [
   euler,
   diameter,
 
-  strategy,
+  strategy, observer, command, state, visitor,
+  decorator, composite,
+  raii, crtp, typeErasure, variant,
 ];
 
 /* Kruskal rather than the first entry: it is the most complete treatment here,

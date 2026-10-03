@@ -11,11 +11,12 @@ import { ALGORITHMS, DEFAULT_ID, byId, grouped } from "./core/catalog.js";
 import { record } from "./core/trace.js";
 import { createGraphView } from "./views/graph.js";
 import { createObjectsView } from "./views/objects.js";
+import { createMemoryView } from "./views/memory.js";
 
 const el = (id) => document.getElementById(id);
 
 /** One renderer per structure kind. Arrays and trees join this map later. */
-const VIEWS = { graph: createGraphView, objects: createObjectsView };
+const VIEWS = { graph: createGraphView, objects: createObjectsView, memory: createMemoryView };
 
 /** Which tab panels exist, in bar order. */
 const PANELS = ["explain", "code", "analysis", "run"];
@@ -141,8 +142,29 @@ function loadFrames(frames, source) {
   goto(0);
 }
 
+/**
+ * Escaped text with **bold**, *italic* and `code`. Code spans are set aside
+ * first, so a `*this` inside one is not read as emphasis, and bold may wrap code.
+ */
+const inline = (s) => {
+  const codes = [];
+  return esc(s)
+    .replace(/`([^`]+)`/g, (_, c) => `\u0000${codes.push(c) - 1}\u0000`)
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*([^*\s][^*]*)\*/g, "<em>$1</em>")
+    .replace(/\u0000(\d+)\u0000/g, (_, i) => `<code>${codes[Number(i)]}</code>`);
+};
+
 function renderExplanation(alg) {
-  el("panel-explain").innerHTML = alg.explanation.map((p) => `<p>${esc(p)}</p>`).join("");
+  el("panel-explain").innerHTML = alg.explanation
+    .map((b) => {
+      if (typeof b === "string") return `<p>${inline(b)}</p>`;
+      if (b.h) return `<h3 class="ex-h">${inline(b.h)}</h3>`;
+      if (b.list) return `<ul class="ex-list">${b.list.map((i) => `<li>${inline(i)}</li>`).join("")}</ul>`;
+      if (b.tip) return `<p class="ex-tip">${inline(b.tip)}</p>`;
+      return "";
+    })
+    .join("");
 }
 
 function renderCode(alg) {
@@ -193,7 +215,7 @@ function renderAnalysis(alg) {
     <dl class="complexity">
       ${rows.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join("")}
     </dl>
-    <ul class="analysis-notes">${a.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>`;
+    <ul class="analysis-notes">${a.notes.map((n) => `<li>${inline(n)}</li>`).join("")}</ul>`;
 }
 
 /* ------------------------------------------------------------------ */
