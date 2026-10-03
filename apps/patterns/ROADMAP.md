@@ -1,6 +1,10 @@
 # Design patterns in C++ — build roadmap
 
-Status: planned, nothing built. Written 2026-10-03.
+Status: batch 0 shipped 2026-10-03 (objects view, section, Strategy). Next:
+batch 1. The frame fields every pattern copies are documented at the top of
+`apps/algorithms/topics/pat-strategy.js`; the self-test pattern (compile each
+listing, compare its output with the frames' "printed" rows) is in the commit
+that added it.
 
 Goal: learn patterns by *seeing* them, classic and modern, in C++. Every
 animated pattern answers three questions in this order:

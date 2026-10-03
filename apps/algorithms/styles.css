@@ -125,6 +125,42 @@
 .gv-edge[data-state="accepted"] { stroke: #3fb950; stroke-width: 4.5; }
 .gv-edge[data-state="rejected"] { stroke: #6e2f2f; stroke-width: 2; opacity: 0.5; stroke-dasharray: 5 5; }
 
+/* ---- objects view (design patterns) ---- */
+.ov-box rect { fill: #161b22; stroke: #30363d; stroke-width: 1.5; transition: fill 0.2s, stroke 0.2s, opacity 0.2s; }
+.ov-box[data-role="interface"] rect { stroke: #d2a8ff; stroke-dasharray: 6 4; fill: rgba(210, 168, 255, 0.06); }
+.ov-box[data-role="client"] rect { stroke: #58a6ff; fill: rgba(88, 166, 255, 0.07); }
+.ov-box[data-role="code"] rect { fill: #11161d; }
+.ov-box[data-state="active"] rect { stroke: #e3b341; stroke-width: 2.5; fill: rgba(227, 179, 65, 0.12); }
+.ov-box[data-state="dispatch"] rect { stroke: #d2a8ff; stroke-width: 2.5; stroke-dasharray: none; fill: rgba(210, 168, 255, 0.16); }
+.ov-box[data-state="edited"] rect { stroke: #f85149; stroke-width: 2.5; fill: rgba(248, 81, 73, 0.12); }
+.ov-box[data-state="new"] rect { stroke: #3fb950; stroke-width: 2.5; fill: rgba(63, 185, 80, 0.14); }
+.ov-box[data-state="dim"] { opacity: 0.4; }
+.ov-title { fill: var(--text); font-family: var(--mono); font-size: 13px; font-weight: 600; }
+.ov-stereo { fill: #d2a8ff; font-family: var(--mono); font-size: 11px; }
+.ov-rule { stroke: #30363d; }
+.ov-line { fill: #9da7b3; font-family: var(--mono); font-size: 12px; white-space: pre; }
+.ov-line-add { fill: #3fb950; font-weight: 600; }
+
+.ov-link { stroke: #57606a; stroke-width: 1.6; fill: none; }
+.ov-link[data-kind="implements"] { stroke-dasharray: 6 4; }
+.ov-link[data-kind="uses"] { stroke-dasharray: 2 4; }
+.ov-link[data-kind="ref"] { stroke: #e3b341; stroke-width: 2; stroke-dasharray: 7 4; }
+.ov-link-label { fill: #8b949e; font-family: var(--mono); font-size: 11px; }
+.ov-link-label[data-kind="ref"] { fill: #e3b341; }
+.ov-mk path { fill: #57606a; }
+.ov-mk-tri path { fill: #0d1117; stroke: #57606a; stroke-width: 1.4; }
+.ov-mk-dia path { fill: #57606a; }
+.ov-mk-msg path { fill: #58a6ff; }
+.ov-mk-ret path { fill: #3fb950; }
+
+.ov-msg { stroke: #58a6ff; stroke-width: 3; }
+.ov-msg-ret { stroke: #3fb950; stroke-dasharray: 7 4; }
+.ov-chip rect { fill: #0d2a4a; stroke: #58a6ff; }
+.ov-chip-ret rect { fill: #0f2e1a; stroke: #3fb950; }
+.ov-chip text { fill: #e6edf3; font-family: var(--mono); font-size: 12px; font-weight: 600; }
+
+.code-note { margin: 18px 0 6px; color: var(--text); font-size: 0.92rem; }
+
 .gv-weight rect { fill: #0a0d12; stroke: #30363d; stroke-width: 1; transition: stroke 0.2s ease; }
 .gv-weight text { fill: var(--text-dim); font-family: var(--mono); font-size: 12px; }
 .gv-weight[data-state="candidate"] rect { stroke: #e3b341; }

@@ -34,6 +34,8 @@ import { colouring } from "../topics/graph-colouring.js";
 import { euler } from "../topics/euler-circuit.js";
 import { diameter } from "../topics/tree-diameter.js";
 
+import { strategy } from "../topics/pat-strategy.js";
+
 export const ALGORITHMS = [
   bfs, dfs,
   kruskal, prim, boruvka,
@@ -44,6 +46,8 @@ export const ALGORITHMS = [
   colouring,
   euler,
   diameter,
+
+  strategy,
 ];
 
 /* Kruskal rather than the first entry: it is the most complete treatment here,

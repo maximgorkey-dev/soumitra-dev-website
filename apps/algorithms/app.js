@@ -10,11 +10,12 @@
 import { ALGORITHMS, DEFAULT_ID, byId, grouped } from "./core/catalog.js";
 import { record } from "./core/trace.js";
 import { createGraphView } from "./views/graph.js";
+import { createObjectsView } from "./views/objects.js";
 
 const el = (id) => document.getElementById(id);
 
 /** One renderer per structure kind. Arrays and trees join this map later. */
-const VIEWS = { graph: createGraphView };
+const VIEWS = { graph: createGraphView, objects: createObjectsView };
 
 /** Which tab panels exist, in bar order. */
 const PANELS = ["explain", "code", "analysis", "run"];
@@ -140,38 +141,52 @@ function renderExplanation(alg) {
 }
 
 function renderCode(alg) {
+  const { lang } = alg.code;
+  // Patterns show several listings (before, after, modern); algorithms one.
+  const files = alg.code.files || [{ name: lang, source: alg.code.source }];
+  const lead = alg.code.files
+    ? "Every listing is a complete program that compiles with g++ -std=c++20 -Wall and prints what the animation shows."
+    : `Reference implementation in ${esc(lang.toUpperCase())}. It is the same logic the
+      visualisation runs, written the way you would actually write it.`;
+
   el("panel-code").innerHTML = `
-    <p class="panel-lead">
-      Reference implementation in ${esc(alg.code.lang.toUpperCase())}. It is the same logic the
-      visualisation runs, written the way you would actually write it.
-    </p>
+    <p class="panel-lead">${lead}</p>
+    ${files
+      .map(
+        (f, i) => `
+    ${f.note ? `<p class="code-note">${esc(f.note)}</p>` : ""}
     <div class="code-block">
       <div class="code-head">
-        <span class="code-lang">${esc(alg.code.lang)}</span>
-        <button class="code-copy" type="button" id="btn-copy">copy</button>
+        <span class="code-lang">${esc(f.name)}</span>
+        <button class="code-copy" type="button" data-copy="${i}">copy</button>
       </div>
-      <pre><code class="language-${esc(alg.code.lang)}">${esc(alg.code.source)}</code></pre>
-    </div>`;
+      <pre><code class="language-${esc(lang)}">${esc(f.source)}</code></pre>
+    </div>`
+      )
+      .join("")}`;
 
-  const block = el("panel-code").querySelector("code");
-  if (window.hljs) window.hljs.highlightElement(block);
-
-  el("btn-copy").addEventListener("click", async () => {
-    try {
-      await navigator.clipboard.writeText(alg.code.source);
-      toast("copied");
-    } catch {
-      toast("could not copy", true);
-    }
+  el("panel-code").querySelectorAll("code").forEach((block) => {
+    if (window.hljs) window.hljs.highlightElement(block);
   });
+
+  el("panel-code").querySelectorAll("[data-copy]").forEach((b) =>
+    b.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(files[Number(b.dataset.copy)].source);
+        toast("copied");
+      } catch {
+        toast("could not copy", true);
+      }
+    })
+  );
 }
 
 function renderAnalysis(alg) {
   const a = alg.analysis;
+  const rows = a.rows || [["Time", a.time], ["Space", a.space]];
   el("panel-analysis").innerHTML = `
     <dl class="complexity">
-      <div><dt>Time</dt><dd>${esc(a.time)}</dd></div>
-      <div><dt>Space</dt><dd>${esc(a.space)}</dd></div>
+      ${rows.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join("")}
     </dl>
     <ul class="analysis-notes">${a.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>`;
 }
