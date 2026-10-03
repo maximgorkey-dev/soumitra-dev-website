@@ -48,6 +48,9 @@ export function createView(canvas, { onHover } = {}) {
   let floorplan = null;
   let density = null; // { binsX, binsY, values }
   let target = 0.7;
+  let clock = null; // { segs: [x1,y1,x2,y2,level, ...], bufs, upto }
+  let route = null; // { grid, usage, congestion }
+  let timing = null; // { slack, pathPts, period }
 
   let width = 1;
   let height = 1;
@@ -56,7 +59,10 @@ export function createView(canvas, { onHover } = {}) {
   // World coordinate at the viewport's bottom-left, plus pixels per dbu.
   const cam = { x: 0, y: 0, scale: 0.02 };
 
-  const show = { flylines: true, density: false, rows: true, pins: true, labels: true };
+  const show = {
+    flylines: true, density: false, rows: true, pins: true, labels: true,
+    clock: true, routes: true, congestion: false, timing: true,
+  };
   let hovered = null;
   let selected = null;
   let needsDraw = false;
@@ -122,10 +128,119 @@ export function createView(canvas, { onHover } = {}) {
     drawDie();
     if (show.rows) drawRows();
     if (show.density && density) drawDensity();
+    if (show.congestion && route) drawCongestion();
     if (show.flylines) drawFlylines();
     drawCells();
+    // Above the cells: they are opaque, and routing runs over them on metal.
+    if (show.routes && route) drawRoutes();
+    if (show.timing && timing) drawTiming();
+    if (show.clock && clock) drawClock();
     drawPorts();
     drawOverlay();
+  }
+
+  /* ---------------- back-end overlays ---------------- */
+
+  const tileCentre = (g, x, y) => ({ x: g.x0 + (x + 0.5) * g.g, y: g.y0 + (y + 0.5) * g.g });
+
+  /** Green through amber to red as a tile's busiest edge approaches capacity. */
+  function drawCongestion() {
+    const { grid: g, congestion } = route;
+    const px = g.g * cam.scale;
+    for (let y = 0; y < g.ny; y++) {
+      for (let x = 0; x < g.nx; x++) {
+        const v = congestion[y * g.nx + x];
+        if (v <= 0) continue;
+        const hue = Math.max(0, 120 - 120 * Math.min(1, v));
+        ctx.fillStyle = `hsla(${hue}, 80%, 50%, ${v > 1 ? 0.55 : 0.12 + 0.3 * v})`;
+        ctx.fillRect(sx(g.x0 + x * g.g), sy(g.y0 + (y + 1) * g.g), px, px);
+      }
+    }
+  }
+
+  /**
+   * Routing demand on every tile boundary: one line per used edge between tile
+   * centres, thicker with more nets, red once over capacity. Horizontal layers
+   * in blue and vertical in violet, matching the usual layer colouring.
+   */
+  function drawRoutes() {
+    const { grid: g, usage } = route;
+    ctx.lineCap = "round";
+    for (let e = 0; e < usage.length; e++) {
+      const u = usage[e];
+      if (!u) continue;
+      const horiz = e < g.nH;
+      const capacity = horiz ? g.capH : g.capV;
+      let x, y, a, b;
+      if (horiz) {
+        x = e % (g.nx - 1); y = Math.floor(e / (g.nx - 1));
+        a = tileCentre(g, x, y); b = tileCentre(g, x + 1, y);
+      } else {
+        const k = e - g.nH;
+        x = k % g.nx; y = Math.floor(k / g.nx);
+        a = tileCentre(g, x, y); b = tileCentre(g, x, y + 1);
+      }
+      const over = u > capacity;
+      ctx.strokeStyle = over ? "rgba(248,81,73,0.9)" : horiz ? "rgba(88,166,255,0.6)" : "rgba(163,113,247,0.6)";
+      ctx.lineWidth = Math.min(7, 1 + (4 * u) / capacity);
+      ctx.beginPath();
+      ctx.moveTo(sx(a.x), sy(a.y));
+      ctx.lineTo(sx(b.x), sy(b.y));
+      ctx.stroke();
+    }
+  }
+
+  function drawClock() {
+    const { segs, bufs, upto } = clock;
+    ctx.strokeStyle = "rgba(45,212,191,0.9)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i < segs.length; i += 5) {
+      if (segs[i + 4] > upto) continue;
+      ctx.moveTo(sx(segs[i]), sy(segs[i + 1]));
+      ctx.lineTo(sx(segs[i + 2]), sy(segs[i + 3]));
+    }
+    ctx.stroke();
+    for (const b of bufs) {
+      if (b.level > upto) continue;
+      const r = b.big ? 5 : 3.5;
+      const x = sx(b.x), y = sy(b.y);
+      ctx.fillStyle = "#2dd4bf";
+      ctx.beginPath();
+      ctx.moveTo(x - r, y - r);
+      ctx.lineTo(x + r, y);
+      ctx.lineTo(x - r, y + r);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  /** Cells tinted by slack, and the critical path drawn pin to pin on top. */
+  function drawTiming() {
+    const { slack, pathPts, period } = timing;
+    for (const c of design.cells) {
+      const s = slack[c.index];
+      if (!Number.isFinite(s)) continue;
+      let fill;
+      if (s < 0) fill = "rgba(248,81,73,0.55)";
+      else if (s < 0.15 * period) fill = "rgba(210,153,34,0.4)";
+      else continue;
+      ctx.fillStyle = fill;
+      ctx.fillRect(sx(c.x), sy(c.y + c.height), c.width * cam.scale, c.height * cam.scale);
+    }
+    if (pathPts.length < 4) return;
+    ctx.strokeStyle = "#ff7b72";
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(sx(pathPts[0]), sy(pathPts[1]));
+    for (let i = 2; i < pathPts.length; i += 2) ctx.lineTo(sx(pathPts[i]), sy(pathPts[i + 1]));
+    ctx.stroke();
+    ctx.fillStyle = "#ff7b72";
+    for (let i = 0; i < pathPts.length; i += 2) {
+      ctx.beginPath();
+      ctx.arc(sx(pathPts[i]), sy(pathPts[i + 1]), 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   function drawPlaceholder() {
@@ -475,7 +590,31 @@ export function createView(canvas, { onHover } = {}) {
       hovered = null;
       floorplan = null;
       density = null;
+      clock = null;
+      route = null;
+      timing = null;
       buildPinCache();
+      schedule();
+    },
+
+    setClockTree(tree) {
+      clock = { ...tree, upto: -1 };
+      schedule();
+    },
+
+    setClockLevel(upto) {
+      if (clock) clock.upto = upto;
+      schedule();
+    },
+
+    /** `grid` arrives once with the first routing frame; later frames omit it. */
+    setRoute(grid, usage, congestion) {
+      route = { grid: grid || (route && route.grid), usage, congestion };
+      schedule();
+    },
+
+    setTiming(next) {
+      timing = next;
       schedule();
     },
 

@@ -47,6 +47,18 @@ export const DBU_PER_UM = 1000;
 
 export const toUm = (dbu) => dbu / DBU_PER_UM;
 
+/**
+ * Lumped resistance and capacitance of `len` dbu of wire on one layer.
+ *
+ * Layer figures are read as ohms and femtofarads per micron. Resistance comes
+ * back in kilohms so that R x C lands in picoseconds, the same unit as every
+ * number in the cell library.
+ */
+export function wireRC(len, layer = TECH.layers[2]) {
+  const um = len / DBU_PER_UM;
+  return { r: (um * layer.resPerUm) / 1000, c: um * layer.capPerUm };
+}
+
 /** Snap a coordinate down onto the site grid, relative to an origin. */
 export function snapSite(x, originX = 0) {
   return originX + Math.round((x - originX) / TECH.siteWidth) * TECH.siteWidth;

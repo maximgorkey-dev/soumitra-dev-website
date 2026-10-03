@@ -66,6 +66,20 @@
         <input class="slider" type="range" id="aspect" min="40" max="250" step="5" value="100" />
         <p class="panel-note">Core width divided by height, rounded to whole rows and sites.</p>
 
+        <div class="slider-row">
+          <label class="app-label" for="period">Clock period</label>
+          <output class="slider-value" id="period-out">2000 ps</output>
+        </div>
+        <input class="slider" type="range" id="period" min="200" max="3000" step="25" value="2000" />
+        <p class="panel-note">The timing target. Shorten it until paths start failing.</p>
+
+        <div class="slider-row">
+          <label class="app-label" for="supply">Routing supply</label>
+          <output class="slider-value" id="supply-out">50%</output>
+        </div>
+        <input class="slider" type="range" id="supply" min="5" max="100" step="5" value="50" />
+        <p class="panel-note">Share of routing tracks free for signals. Squeeze it to make the router fight congestion.</p>
+
         <button class="app-btn app-btn-ghost app-btn-sm app-btn-wide" id="btn-apply-constraints" type="button">
           Apply and re-run
         </button>
@@ -154,6 +168,10 @@
           <button class="chip chip-btn chip-active" data-toggle="rows" type="button">Rows</button>
           <button class="chip chip-btn chip-active" data-toggle="pins" type="button">Pins</button>
           <button class="chip chip-btn chip-active" data-toggle="labels" type="button">Labels</button>
+          <button class="chip chip-btn chip-active" data-toggle="clock" type="button">Clock tree</button>
+          <button class="chip chip-btn chip-active" data-toggle="routes" type="button">Routes</button>
+          <button class="chip chip-btn" data-toggle="congestion" type="button">Congestion</button>
+          <button class="chip chip-btn chip-active" data-toggle="timing" type="button">Timing</button>
         </div>
         <div class="view-actions">
           <span class="readout" id="readout"></span>

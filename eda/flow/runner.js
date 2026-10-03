@@ -16,6 +16,9 @@ import { densityMap, densityCeiling, checkLegality } from "../core/metrics.js";
 import { floorplan } from "./floorplan.js";
 import { globalPlace } from "./globalplace.js";
 import { legalize } from "./legalize.js";
+import { clockTreeSynthesis } from "./cts.js";
+import { globalRoute } from "./groute.js";
+import { staticTiming } from "./sta.js";
 import { STAGES } from "./stages.js";
 
 export { STAGES };
@@ -219,6 +222,61 @@ export function createRunner(emit) {
     return result || { metrics: {}, logs: ["cancelled"] };
   }
 
+  /**
+   * Drain a stage generator, emitting each yielded step and pacing between
+   * them. Both stages below have only a handful of steps, so each gets a
+   * minimum dwell that keeps it visible even at full speed.
+   */
+  async function drain(gen, onStep, minDwell) {
+    for (;;) {
+      const step = gen.next();
+      if (step.done) return step.value;
+      onStep(step.value);
+      await pacer.wait(Math.max(minDwell, pace.delay * 3));
+      if (cancelled) return null;
+    }
+  }
+
+  async function stageCts() {
+    const result = await drain(
+      clockTreeSynthesis(design),
+      (v) => {
+        if (v.tree) emit({ t: "cts", tree: v.tree });
+        emit({ t: "ctsLevel", upto: v.upto, levels: v.levels });
+      },
+      60
+    );
+    if (!result) return { metrics: {}, logs: ["cancelled"] };
+    design.clockLatency = result.latency;
+    return result;
+  }
+
+  async function stageRoute() {
+    const result = await drain(
+      globalRoute(design),
+      (v) => emit(
+        { t: "route", grid: v.grid || null, usage: v.usage, congestion: v.congestion, metrics: v.metrics },
+        [v.usage.buffer, v.congestion.buffer]
+      ),
+      120
+    );
+    if (!result) return { metrics: {}, logs: ["cancelled"] };
+    design.netWire = result.netWire;
+    return result;
+  }
+
+  function stageSta() {
+    const res = staticTiming(design);
+    emit({
+      t: "timing",
+      slack: res.slack,
+      pathCells: res.pathCells,
+      pathPts: res.pathPts,
+      period: res.metrics.period,
+    });
+    return res;
+  }
+
   async function runStage(index) {
     const stage = STAGES[index];
     emit({ t: "stage", id: stage.id, status: "running" });
@@ -229,6 +287,9 @@ export function createRunner(emit) {
       else if (stage.id === "floorplan") res = stageFloorplan();
       else if (stage.id === "place") res = await stagePlace();
       else if (stage.id === "legalize") res = await stageLegalize();
+      else if (stage.id === "cts") res = await stageCts();
+      else if (stage.id === "groute") res = await stageRoute();
+      else if (stage.id === "sta") res = stageSta();
       else throw new Error(`no implementation for stage ${stage.id}`);
 
       for (const line of res.logs || []) log(line);

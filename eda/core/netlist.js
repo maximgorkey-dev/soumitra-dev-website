@@ -19,8 +19,7 @@
 import { cellDef, outputPin } from "./library.js";
 
 export const DEFAULT_CONSTRAINTS = {
-  // Timing. Unused until static timing analysis lands, but the clock period is
-  // already the headline constraint of any real flow, so it is authored here.
+  // Timing, read by static timing analysis.
   clockPeriod: 2000, // ps
   inputDelay: 200, // ps, arrival at a primary input relative to the clock edge
   outputDelay: 200, // ps, required time budget reserved outside this block
@@ -29,6 +28,10 @@ export const DEFAULT_CONSTRAINTS = {
   // Floorplan. These two are what phase 1 actually lets you push on.
   utilization: 0.7, // fraction of core area occupied by cells
   aspectRatio: 1.0, // core width / core height
+
+  // Routing: the fraction of tracks left for signals once power, pin access
+  // and the clock have taken theirs.
+  routeSupply: 0.5,
 };
 
 /** An empty source-form design. */

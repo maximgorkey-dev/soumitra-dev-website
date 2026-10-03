@@ -8,6 +8,8 @@
  * explainers exist for everyone else, and stay folded away until asked for.
  */
 
+import { CPP } from "./cpp.js";
+
 const esc = (s) =>
   String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
@@ -142,7 +144,11 @@ export const EXPLAINERS = {
   cts: {
     title: "Clock tree synthesis",
     anchor: "cts",
-    planned: true,
+    metric:
+      "Skew is the spread between the earliest and latest clock arrival at any flop; insertion delay is the " +
+      "range itself. This demo splits the flops recursively at the median (means and medians), puts a buffer " +
+      "at each split, and times the tree with Elmore delay. Buffers sit at their ideal positions rather than " +
+      "being legalised into rows.",
     goal: "Build the clock network so every flop is clocked at nearly the same instant.",
     what:
       "The clock reaches thousands of flip-flops, and until now it has been one net with an impossible fanout. " +
@@ -166,7 +172,10 @@ export const EXPLAINERS = {
   groute: {
     title: "Global routing",
     anchor: "groute",
-    planned: true,
+    metric:
+      "Overflow is how many nets cross tile boundaries beyond their track capacity, summed over the grid; zero " +
+      "means routable. Watch it fall round by round as congested nets are ripped up and rerouted with A*. " +
+      "Lower the routing supply slider to make the fight visible.",
     goal: "Plan a rough path for every net through a coarse grid, without overusing any region.",
     what:
       "Divides the core into a coarse grid of tiles and decides, for each net, which tiles it passes through " +
@@ -210,7 +219,11 @@ export const EXPLAINERS = {
   sta: {
     title: "Static timing analysis",
     anchor: "sta",
-    planned: true,
+    metric:
+      "Worst negative slack (WNS) is the single worst endpoint; total negative slack (TNS) sums every failing " +
+      "one. Red cells have negative slack, amber are within 15% of the period, and the red line is the " +
+      "critical path. Its full report is in the log. Wire delay uses global-route lengths, not extracted " +
+      "parasitics, so treat it as a pre-signoff estimate.",
     goal: "Prove every path meets timing in every condition, without simulating anything.",
     what:
       "Computes the arrival time of every signal at every pin and compares it against when it was required, " +
@@ -233,10 +246,9 @@ export const EXPLAINERS = {
 };
 
 export const PLANNED_NOTE =
-  "Clock tree synthesis, routing and timing analysis are the next stages to build. The data model already " +
-  "carries what they need: nets know their driver, the library carries capacitance and drive resistance, and " +
-  "the technology defines routing layers with preferred directions. Every chip in the bar above explains " +
-  "itself — the greyed ones included — and there is a longer primer at /eda/guide/.";
+  "The flow runs from netlist to timing. Detail routing is the one stage explained but not performed: timing " +
+  "here uses global-route wire lengths in place of extracted parasitics. Every chip in the bar above explains " +
+  "itself, including the algorithm it runs as C++, and there is a longer primer at /eda/guide/.";
 
 /* ------------------------------------------------------------------ */
 /* stage pipeline                                                      */
@@ -423,6 +435,29 @@ export function createSparkline(canvas) {
 /* explainer drawer                                                    */
 /* ------------------------------------------------------------------ */
 
+/**
+ * highlight.js is fetched only when someone first opens a code listing; most
+ * visitors never will, and it is the heaviest asset on the page.
+ */
+let highlighter = null;
+function loadHighlighter() {
+  if (window.hljs) return Promise.resolve(window.hljs);
+  if (!highlighter) {
+    highlighter = new Promise((resolve, reject) => {
+      const css = document.createElement("link");
+      css.rel = "stylesheet";
+      css.href = "/eda/vendor/highlight-theme.min.css";
+      document.head.append(css);
+      const script = document.createElement("script");
+      script.src = "/eda/vendor/highlight.min.js";
+      script.onload = () => resolve(window.hljs);
+      script.onerror = reject;
+      document.head.append(script);
+    });
+  }
+  return highlighter;
+}
+
 export function createExplainer(root) {
   const para = (tag, text) => (text ? `<p><span class="explain-tag">${tag}</span>${esc(text)}</p>` : "");
 
@@ -447,10 +482,28 @@ export function createExplainer(root) {
         ${para("How it goes wrong", e.fails)}
         <a class="explain-more" href="/eda/guide/#${esc(e.anchor || id)}">
           Read this in the primer &rarr;
-        </a>`;
+        </a>
+        ${CPP[id] ? `
+        <details class="explain-code">
+          <summary>The algorithm, in C++</summary>
+          <p class="explain-code-note">A condensed C++ rendering of what this stage runs. The live code is
+            JavaScript, readable at <a href="/eda/flow/${esc(CPP[id].file)}">/eda/flow/${esc(CPP[id].file)}</a>.</p>
+          <pre><code class="language-cpp">${esc(CPP[id].code)}</code></pre>
+        </details>` : ""}`;
+      root.classList.remove("explain-wide");
       root.querySelector(".explain-close").addEventListener("click", () => {
         root.hidden = true;
       });
+      const code = root.querySelector(".explain-code");
+      if (code) {
+        code.addEventListener("toggle", () => {
+          root.classList.toggle("explain-wide", code.open);
+          const block = code.querySelector("code");
+          if (code.open && !block.dataset.highlighted) {
+            loadHighlighter().then((hljs) => hljs && hljs.highlightElement(block)).catch(() => {});
+          }
+        });
+      }
     },
     hide() {
       root.hidden = true;

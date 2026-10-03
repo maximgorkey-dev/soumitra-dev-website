@@ -110,6 +110,28 @@ function accumulator(width, name) {
 }
 
 /**
+ * Registered adder: every input and every output passes through a flip-flop,
+ * so all the timing paths that matter run register to register through the
+ * carry chain. This is how a datapath is actually built, and it gives clock
+ * tree synthesis two dozen sinks spread across the whole block.
+ */
+function pipelinedAdder(width, name) {
+  const b = builder(name);
+  const clk = b.input("clk");
+  const a = bits(width).map((i) => b.dff(b.input(`a${i}`), clk, `ra${i}`));
+  const y = bits(width).map((i) => b.dff(b.input(`b${i}`), clk, `rb${i}`));
+  let carry = b.dff(b.input("cin"), clk, "rcin");
+
+  for (const i of bits(width)) {
+    const fa = fullAdder(b, a[i], y[i], carry);
+    b.output(`s${i}`, b.dff(fa.sum, clk, `rs${i}`));
+    carry = fa.cout;
+  }
+  b.output("cout", b.dff(carry, clk, "rcout"));
+  return b.build();
+}
+
+/**
  * Four-function ALU: AND, OR, XOR and ADD, selected by a two-bit opcode
  * through a mux tree. The select nets fan out across the whole datapath, which
  * pulls the placement into a recognisable bit-sliced shape.
@@ -178,6 +200,13 @@ export const PRESETS = [
     build: () => accumulator(8, "accum8"),
   },
   {
+    id: "pipe8",
+    label: "8-bit registered adder",
+    blurb: "Flops on every input and output: 26 clock sinks and register-to-register paths through the carry chain.",
+    cells: 66,
+    build: () => pipelinedAdder(8, "pipe8"),
+  },
+  {
     id: "adder16",
     label: "16-bit adder",
     blurb: "The big one. Enough cells to make global placement take visible work.",
@@ -186,7 +215,7 @@ export const PRESETS = [
   },
 ];
 
-export const DEFAULT_PRESET = "adder8";
+export const DEFAULT_PRESET = "pipe8";
 
 export function presetById(id) {
   return PRESETS.find((p) => p.id === id) || null;

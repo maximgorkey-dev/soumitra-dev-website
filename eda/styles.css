@@ -163,11 +163,10 @@ details[open] .panel-summary { margin-bottom: 12px; }
 .stage-bar {
   display: flex;
   align-items: stretch;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 12px 16px;
-  overflow-x: auto;
   border-bottom: 1px solid var(--border);
-  scrollbar-width: thin;
 }
 
 .stage {
@@ -501,6 +500,33 @@ details[open] .panel-summary { margin-bottom: 12px; }
   padding: 0 2px;
 }
 .explain-close:hover { color: var(--text); }
+.explain.explain-wide { width: min(820px, calc(100vw - 40px)); max-height: 84vh; }
+.explain-code { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; }
+.explain-code summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+.explain-code .explain-code-note { font-size: 0.78rem; }
+.explain-code .explain-code-note a { color: var(--accent); }
+.explain-code pre {
+  margin: 10px 0 0;
+  max-height: 56vh;
+  overflow: auto;
+  border-radius: 8px;
+  background: #0b0f14;
+  border: 1px solid var(--border);
+}
+.explain-code code {
+  display: block;
+  padding: 12px 14px;
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  line-height: 1.55;
+  white-space: pre;
+  background: transparent;
+}
 .explain p { font-size: 0.85rem; line-height: 1.6; color: var(--text-dim); margin: 12px 0 0; }
 .explain-tag {
   display: block;

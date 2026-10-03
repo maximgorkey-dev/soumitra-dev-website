@@ -117,6 +117,7 @@ function handle(msg) {
       state.floorplan = null;
       state.placeFirst = null;
       state.placePrev = null;
+      setLayer("flylines", true);
       break;
 
     case "design":
@@ -142,6 +143,32 @@ function handle(msg) {
         spark.push({ hpwl: msg.metrics.hpwl, overflow: msg.metrics.overflow });
         renderMetrics();
       }
+      break;
+
+    case "cts":
+      view.setClockTree(msg.tree);
+      setLayer("flylines", false);
+      break;
+
+    case "ctsLevel":
+      view.setClockLevel(msg.upto);
+      stageBar.setMetric("cts", `level ${msg.upto} / ${msg.levels}`);
+      break;
+
+    case "route": {
+      view.setRoute(msg.grid, msg.usage, msg.congestion);
+      const m = msg.metrics;
+      stageBar.setMetric("groute", `round ${m.iter} · overflow ${fmt.int(m.overflow)}`);
+      focus.setGauges([
+        { role: "objective", label: "Wirelength", value: fmt.um(m.wirelength, 1) },
+        { role: "constraint", label: "Overflow", value: fmt.int(m.overflow), note: `${fmt.int(m.overEdges)} edges over capacity` },
+        { role: "info", label: "Round", value: fmt.int(m.iter) },
+      ]);
+      break;
+    }
+
+    case "timing":
+      view.setTiming({ slack: msg.slack, pathPts: msg.pathPts, period: msg.period });
       break;
 
     case "progress":
@@ -279,6 +306,24 @@ function finalGauges(id, m) {
         { role: "constraint", label: "Cost of legality", value: fmt.signedPct(m.hpwlDelta) },
         { role: "info", label: "Legal", value: m.legal ? "yes" : "no" },
       ];
+    case "cts":
+      return [
+        { role: "objective", label: "Skew", value: fmt.ps(m.skew) },
+        { role: "info", label: "Insertion delay", value: `${fmt.ps(m.minLatency)} – ${fmt.ps(m.maxLatency)}` },
+        { role: "info", label: "Buffers", value: fmt.int(m.buffers) },
+      ];
+    case "groute":
+      return [
+        { role: "objective", label: "Wirelength", value: fmt.um(m.wirelength, 1) },
+        { role: "constraint", label: "Overflow", value: fmt.int(m.overflow), note: `from ${fmt.int(m.initialOverflow)}` },
+        { role: "info", label: "Vias", value: fmt.int(m.vias) },
+      ];
+    case "sta":
+      return [
+        { role: "objective", label: "Worst slack", value: fmt.ps(m.wns) },
+        { role: "constraint", label: "Failing endpoints", value: `${fmt.int(m.violations)} / ${fmt.int(m.endpoints)}` },
+        { role: "info", label: "Fmax", value: m.fmax ? `${m.fmax.toFixed(0)} MHz` : "—" },
+      ];
     default:
       return [];
   }
@@ -294,6 +339,12 @@ function headline(id, m) {
       return `${fmt.um(m.hpwl, 1)} · ovf ${fmt.pct(m.overflow, 1)}`;
     case "legalize":
       return `${fmt.um(m.hpwl, 1)} · ${fmt.signedPct(m.hpwlDelta)}`;
+    case "cts":
+      return m.buffers ? `${fmt.int(m.buffers)} bufs · skew ${fmt.ps(m.skew)}` : "no clock";
+    case "groute":
+      return `${fmt.um(m.wirelength, 1)} · ovf ${fmt.int(m.overflow)}`;
+    case "sta":
+      return `WNS ${fmt.ps(m.wns)} · ${fmt.int(m.violations)} failing`;
     default:
       return "";
   }
@@ -368,6 +419,41 @@ function renderMetrics() {
     if (l.unplaced) rows.push({ label: "Unplaced cells", value: fmt.int(l.unplaced), tone: "bad" });
   }
 
+  const { cts: c, groute: g, sta: t } = state.stageMetrics;
+  if (c && c.buffers) {
+    rows.push(
+      "---",
+      { label: "Clock sinks", value: fmt.int(c.sinks) },
+      { label: "Clock buffers", value: `${fmt.int(c.buffers)} in ${c.levels} levels` },
+      { label: "Insertion delay", value: `${fmt.ps(c.minLatency)} – ${fmt.ps(c.maxLatency)}` },
+      { label: "Clock skew", value: fmt.ps(c.skew), tone: "accent" },
+      { label: "Clock wire", value: fmt.um(c.wirelength, 1) }
+    );
+  }
+  if (g) {
+    rows.push(
+      "---",
+      { label: "GCell grid", value: `${g.nx} x ${g.ny}` },
+      { label: "Routed wirelength", value: fmt.um(g.wirelength, 1), tone: "accent" },
+      { label: "Vias (bends)", value: fmt.int(g.vias) },
+      { label: "Peak edge use", value: fmt.pct(g.maxUtil, 0), tone: g.maxUtil > 1 ? "bad" : g.maxUtil > 0.85 ? "warn" : "good" },
+      { label: "Overflow", value: `${fmt.int(g.overflow)} (was ${fmt.int(g.initialOverflow)})`, tone: g.overflow ? "bad" : "good" },
+      { label: "Negotiation rounds", value: fmt.int(g.iterations) }
+    );
+  }
+  if (t) {
+    rows.push(
+      "---",
+      { label: "Clock period", value: fmt.ps(t.period) },
+      { label: "Worst setup slack", value: fmt.ps(t.wns), tone: t.wns < 0 ? "bad" : "good" },
+      { label: "Total negative slack", value: fmt.ps(t.tns), tone: t.tns < 0 ? "bad" : "good" },
+      { label: "Failing endpoints", value: `${fmt.int(t.violations)} / ${fmt.int(t.endpoints)}` },
+      { label: "Worst hold slack", value: t.whs == null ? "—" : fmt.ps(t.whs), tone: t.whs != null && t.whs < 0 ? "bad" : undefined },
+      { label: "Critical endpoint", value: t.critEndpoint },
+      { label: "Fmax estimate", value: t.fmax ? `${t.fmax.toFixed(0)} MHz` : "—", tone: "accent" }
+    );
+  }
+
   if (!rows.length) rows.push({ label: "No results yet", value: "—" });
   metricsPanel.set(rows);
 }
@@ -406,18 +492,32 @@ function currentConstraints() {
   return {
     utilization: Number(el("util").value) / 100,
     aspectRatio: Number(el("aspect").value) / 100,
+    clockPeriod: Number(el("period").value),
+    routeSupply: Number(el("supply").value) / 100,
   };
 }
 
 function syncConstraintInputs(c) {
   el("util").value = Math.round((c.utilization ?? 0.7) * 100);
   el("aspect").value = Math.round((c.aspectRatio ?? 1) * 100);
+  el("period").value = c.clockPeriod ?? 2000;
+  el("supply").value = Math.round((c.routeSupply ?? 0.5) * 100);
   showConstraintValues();
 }
 
 function showConstraintValues() {
   el("util-out").textContent = `${el("util").value}%`;
   el("aspect-out").textContent = (Number(el("aspect").value) / 100).toFixed(2);
+  const ps = Number(el("period").value);
+  el("period-out").textContent = `${ps} ps · ${(1e6 / ps).toFixed(0)} MHz`;
+  el("supply-out").textContent = `${el("supply").value}%`;
+}
+
+/** Turn a layer on or off from code, keeping its chip in step. */
+function setLayer(key, on) {
+  view.toggle(key, on);
+  const chip = document.querySelector(`[data-toggle="${key}"]`);
+  if (chip) chip.classList.toggle("chip-active", on);
 }
 
 function runFlow() {
@@ -473,6 +573,8 @@ function initControls() {
 
   el("util").addEventListener("input", showConstraintValues);
   el("aspect").addEventListener("input", showConstraintValues);
+  el("period").addEventListener("input", showConstraintValues);
+  el("supply").addEventListener("input", showConstraintValues);
 
   el("btn-apply-constraints").addEventListener("click", () => {
     const c = currentConstraints();
