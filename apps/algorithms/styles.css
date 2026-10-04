@@ -135,6 +135,10 @@
 .ov-box[data-state="edited"] rect { stroke: #f85149; stroke-width: 2.5; fill: rgba(248, 81, 73, 0.12); }
 .ov-box[data-state="new"] rect { stroke: #3fb950; stroke-width: 2.5; fill: rgba(63, 185, 80, 0.14); }
 .ov-box[data-state="dim"] { opacity: 0.4; }
+.ov-box-link { cursor: pointer; }
+.ov-box-link:hover .ov-box rect, .ov-box-link:focus-visible .ov-box rect { stroke: #58a6ff; stroke-width: 2.5; }
+.ov-box-link:hover .ov-box[data-state="dim"] { opacity: 0.85; }
+.ov-box-link:focus { outline: none; }
 .ov-title { fill: var(--text); font-family: var(--mono); font-size: 13px; font-weight: 600; }
 .ov-stereo { fill: #d2a8ff; font-family: var(--mono); font-size: 11px; }
 .ov-rule { stroke: #30363d; }

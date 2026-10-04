@@ -667,6 +667,12 @@ function boot() {
   const fallback = TOPICS.some((a) => a.id === DEFAULT_ID) ? DEFAULT_ID : TOPICS[0].id;
   select(TOPICS.some((a) => a.id === fromHash) ? fromHash : fallback);
 
+  // Links inside a visualisation (the pattern map's boxes) and the back button.
+  window.addEventListener("hashchange", () => {
+    const id = window.location.hash.slice(1);
+    if (id && id !== state.algorithm?.id) select(id);
+  });
+
   fetch("/api/me", { credentials: "same-origin" })
     .then((r) => (r.ok ? r.json() : null))
     .then((d) => {

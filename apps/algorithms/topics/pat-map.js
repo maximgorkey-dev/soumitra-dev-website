@@ -6,7 +6,9 @@
 
 import { note } from "./pat-common.js";
 
-const P = (id, label, x, y, modern = false) => ({ id, label, role: modern ? "client" : "concrete", x, y, lines: [] });
+const TOPIC = { template: "pat-template-method", erasure: "pat-type-erasure" };
+const P = (id, label, x, y, modern = false) =>
+  ({ id, label, role: modern ? "client" : "concrete", x, y, lines: [], href: TOPIC[id] || `pat-${id}` });
 
 /* Pairs sit one above the other where possible: link labels are drawn beside
    the line, so a short horizontal link would put its label inside a box. */
@@ -77,7 +79,7 @@ export const patternMap = note({
       detail: "Observer keeps the subject ignorant of who listens. Mediator keeps the colleagues ignorant of each other. A mediator often uses observers internally.",
       states: only("observer", "mediator") },
     { phase: "Map", note: "When you meet a new problem, ask which link describes it: does behaviour vary, does access need control, does state need saving? The link points to the pattern.",
-      detail: "Every box here has its own walkthrough in the list on the left." },
+      detail: "Every box here has its own walkthrough: click a box to open it, and use the browser's Back button to return to the map." },
   ],
   explanation: [
     { tip: "**In one line:** most patterns are one of a handful of moves, and the useful question is not \"which pattern is this?\" but \"which of these neighbours is it, and why not the other one?\"" },
@@ -89,7 +91,7 @@ export const patternMap = note({
       "**Classic and modern** — policy-based design, type erasure, `std::variant` and ranges are the C++ answers to Strategy, Visitor and Iterator, trading run-time flexibility for compile-time checking and value semantics.",
     ] },
     { h: "How to use the map" },
-    "Start from the problem, not the pattern. If behaviour varies, look at the Strategy family and ask who chooses and when. If something wraps something else, ask whether it adds, controls or may stop. If you need undo, ask whether operations or state are cheaper to store.",
+    "Click any box on the map to open that pattern's walkthrough. Start from the problem, not the pattern. If behaviour varies, look at the Strategy family and ask who chooses and when. If something wraps something else, ask whether it adds, controls or may stop. If you need undo, ask whether operations or state are cheaper to store.",
   ],
   analysis: {
     rows: [

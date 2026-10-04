@@ -130,7 +130,14 @@ export function createObjectsView(root) {
             (added ? "+ " : "") + lineText(l)));
         });
       }
-      boxLayer.appendChild(g);
+      if (o.href) {
+        const a = make("a", { href: `#${o.href}`, class: "ov-box-link" });
+        a.appendChild(make("title", {}, `Open ${o.label}`));
+        a.appendChild(g);
+        boxLayer.appendChild(a);
+      } else {
+        boxLayer.appendChild(g);
+      }
     }
 
     const m = marks.msg;
