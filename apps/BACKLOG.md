@@ -1,7 +1,8 @@
 # Site to-do list
 
-The one list of pending work across soumitra.dev. Lives under /apps/ so it sits
-behind the login. Per-app design detail stays in the app roadmaps
+The one list of pending work across soumitra.dev. This file is the source;
+the readable page at /apps/plan/ renders it. Both sit behind the login.
+Per-app design detail stays in the app roadmaps
 (`apps/algorithms/ROADMAP.md`, `apps/patterns/ROADMAP.md`); items here link to
 them rather than repeating them.
 

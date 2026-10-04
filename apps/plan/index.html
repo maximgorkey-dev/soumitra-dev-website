@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Plan — soumitra.dev</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/shared.css" />
+  <style>
+    .plan-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 0 0 22px; }
+    .plan-search {
+      flex: 1; min-width: 180px; background: var(--surface); color: var(--text);
+      border: 1px solid var(--border); border-radius: 9px; padding: 8px 12px; font: inherit;
+    }
+    .plan-search:focus { outline: 2px solid var(--accent); border-color: transparent; }
+    .plan-filters { display: flex; gap: 6px; }
+    .plan-filters button {
+      background: var(--surface); color: var(--text-dim); border: 1px solid var(--border);
+      border-radius: 999px; padding: 5px 12px; font: inherit; font-size: 0.82rem; cursor: pointer;
+    }
+    .plan-filters button[aria-pressed="true"] { color: var(--text); border-color: var(--accent); background: var(--accent-soft); }
+    .plan-nav { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 28px; }
+    .plan-nav a { color: var(--text-dim); font-size: 0.85rem; text-decoration: none; }
+    .plan-nav a:hover { color: var(--accent); }
+    #doc h2 { font-size: 1.25rem; margin: 36px 0 12px; scroll-margin-top: 80px; }
+    .plan-subhead { font-size: 1.02rem; color: var(--accent-2); margin: 22px 0 10px; }
+    #doc p { color: var(--text-dim); }
+    #doc code { font-family: var(--mono); font-size: 0.84em; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+    .plan-order { padding-left: 22px; }
+    .plan-order li { margin: 4px 0; }
+    .plan-order a, .plan-item a { color: var(--accent); }
+    .plan-item {
+      background: var(--surface); border: 1px solid var(--border); border-left-width: 3px;
+      border-radius: 10px; padding: 12px 16px 4px; margin: 10px 0; scroll-margin-top: 80px;
+    }
+    .plan-item[data-size~="S"] { border-left-color: var(--success); }
+    .plan-item[data-size~="M"] { border-left-color: var(--accent); }
+    .plan-item[data-size~="L"] { border-left-color: var(--danger); }
+    .plan-item header { display: flex; align-items: baseline; gap: 10px; }
+    .plan-item h3 { font-size: 1rem; font-weight: 600; margin: 0; flex: 1; }
+    .plan-id { font-family: var(--mono); font-size: 0.78rem; font-weight: 600; text-decoration: none; white-space: nowrap; }
+    .plan-size {
+      font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.03em;
+      color: var(--text-dim); border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px; white-space: nowrap;
+    }
+    .plan-size[data-size~="S"] { color: var(--success); }
+    .plan-size[data-size~="M"] { color: var(--accent); }
+    .plan-size[data-size~="L"] { color: var(--danger); }
+    .plan-sub { margin: 0 0 10px; padding-left: 18px; color: var(--text-dim); }
+    .plan-sub li { margin: 3px 0; }
+    .plan-when { color: var(--success); font-weight: 600; }
+    .plan-what { color: var(--accent-2); font-weight: 600; }
+    .plan-hidden { display: none; }
+    #plan-status { color: var(--text-dim); font-size: 0.85rem; min-height: 1.2em; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-container app-header-inner">
+      <a class="app-brand" href="/apps/">
+        <span class="app-brand-mark">SM</span>
+        <span>soumitra.dev</span>
+      </a>
+      <div class="app-user">
+        <span id="user-email" class="app-user-email"></span>
+        <a class="app-btn app-btn-ghost app-btn-sm" href="/oauth2/sign_out">Sign out</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-container app-main">
+    <h1 class="app-title">Site plan</h1>
+    <p class="app-lead">Everything still to do, in the order worth doing it. Rendered from <code>apps/BACKLOG.md</code>, which stays the list that gets edited.</p>
+    <div class="plan-bar">
+      <input id="plan-search" class="plan-search" type="search" placeholder="Search items, for example &quot;backup&quot; or &quot;ALG-4&quot;" />
+      <div class="plan-filters" role="group" aria-label="Filter by size">
+        <button type="button" data-size="" aria-pressed="true">All</button>
+        <button type="button" data-size="S" aria-pressed="false">Small</button>
+        <button type="button" data-size="M" aria-pressed="false">Medium</button>
+        <button type="button" data-size="L" aria-pressed="false">Large</button>
+      </div>
+    </div>
+    <nav id="plan-nav" class="plan-nav"></nav>
+    <p id="plan-status"></p>
+    <div id="doc">Loading…</div>
+  </main>
+
+  <script type="module">
+    import { renderPlan } from "./render.js";
+
+    const doc = document.getElementById("doc");
+    const status = document.getElementById("plan-status");
+    let size = "";
+
+    fetch("/api/me", { credentials: "same-origin" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d && d.email) document.getElementById("user-email").textContent = d.email; })
+      .catch(() => {});
+
+    const md = await fetch("/apps/BACKLOG.md", { cache: "no-cache" }).then((r) => {
+      if (!r.ok) throw new Error("could not load the plan");
+      return r.text();
+    });
+    doc.innerHTML = renderPlan(md);
+
+    const nav = document.getElementById("plan-nav");
+    for (const h of doc.querySelectorAll("h2")) {
+      const a = document.createElement("a");
+      a.href = "#" + h.id;
+      a.textContent = h.textContent;
+      nav.appendChild(a);
+    }
+
+    const apply = () => {
+      const q = document.getElementById("plan-search").value.trim().toLowerCase();
+      let shown = 0;
+      let total = 0;
+      for (const el of doc.querySelectorAll(".plan-item, .plan-order li")) {
+        const isItem = el.classList.contains("plan-item");
+        if (isItem) total++;
+        const textOk = !q || el.textContent.toLowerCase().includes(q);
+        const sizeOk = !isItem || !size || el.dataset.size.split(" ").includes(size);
+        const hide = !(textOk && sizeOk);
+        el.classList.toggle("plan-hidden", hide);
+        if (isItem && !hide) shown++;
+      }
+      status.textContent = (q || size) ? `${shown} of ${total} items` : `${total} open items`;
+    };
+
+    document.getElementById("plan-search").addEventListener("input", apply);
+    for (const b of document.querySelectorAll(".plan-filters button")) {
+      b.addEventListener("click", () => {
+        size = b.dataset.size;
+        for (const x of document.querySelectorAll(".plan-filters button")) x.setAttribute("aria-pressed", String(x === b));
+        apply();
+      });
+    }
+    apply();
+  </script>
+</body>
+</html>
