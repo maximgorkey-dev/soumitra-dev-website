@@ -50,7 +50,9 @@ import { typeErasure } from "../topics/pat-type-erasure.js";
 import { variant } from "../topics/pat-variant.js";
 import { factoryMethod, abstractFactory, builder, prototype, singleton } from "../topics/pat-creational.js";
 import { adapter, facade, proxy, bridge, flyweight } from "../topics/pat-structural.js";
-import { templateMethod, iterator, chain, mediator, memento } from "../topics/pat-behavioural-notes.js";
+import { templateMethod, iterator, memento } from "../topics/pat-behavioural-notes.js";
+import { chain } from "../topics/pat-chain.js";
+import { mediator } from "../topics/pat-mediator.js";
 import { pimpl, nvi, ruleOfZero, policy, ranges, concepts } from "../topics/pat-modern-notes.js";
 
 export const ALGORITHMS = [

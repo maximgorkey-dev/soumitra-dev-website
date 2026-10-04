@@ -109,7 +109,8 @@ Batch 5 list:
   policy-based design, ranges pipelines, concepts as compile-time interfaces.
 
 Any batch 5 note can be promoted to an animated topic later. Chain of
-Responsibility and Mediator are the likeliest candidates.
+Responsibility (`topics/pat-chain.js`) and Mediator (`topics/pat-mediator.js`)
+were promoted on 2026-10-04.
 
 ## Deferred
 
@@ -118,8 +119,9 @@ Responsibility and Mediator are the likeliest candidates.
   objects view. This is the strongest learning loop, but it needs a second
   harness and trace header. Do it after batch 4, once the frame fields are
   stable.
-- **Quizzes.** For example "which pattern is this code?" drills fed into
-  flashcards.
+- **Quizzes.** Shipped 2026-10-04 as the "Design Patterns in C++" flashcard
+  deck (`server/seed/design-patterns.json`): one "which pattern is this?"
+  card per pattern, linking back to its walkthrough, plus comparison cards.
 
 ## Token rules for each session
 
