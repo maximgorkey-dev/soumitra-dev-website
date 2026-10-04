@@ -272,8 +272,8 @@
         </p>
       </details>
       <p class="in-demo">
-        <strong>In the demo.</strong> Click the Floorplan stage to see its explainer, with the algorithm written
-        out as C++. The code that actually runs is <a href="/eda/flow/floorplan.js">/eda/flow/floorplan.js</a>.
+        <strong>In the demo.</strong> The algorithm is written out as C++ just below, and in the Floorplan
+        stage's explainer. The code that actually runs is <a href="/eda/flow/floorplan.js">/eda/flow/floorplan.js</a>.
       </p>
     </section>
 
@@ -298,6 +298,15 @@
         regions into empty ones. Turn that second force up gradually. Wirelength gets worse as the design
         spreads, deliberately, and the placement you end up looking at is where the two forces balance.
       </p>
+      <figure class="guide-fig">
+        <img src="/eda/guide/img/density.jpg" width="2540" height="1494" loading="lazy"
+             alt="The 16-bit adder eight iterations into global placement, with the density overlay on: cells clumped and overlapping in the top-right and bottom bands, which glow yellow, while the middle and left are still empty and blue." />
+        <figcaption>
+          The 16-bit adder eight iterations in, with the Density overlay on. Yellow bins are at the density
+          ceiling or over it and blue ones are nearly empty; cells are still piled on top of each other, and overflow is at 50%
+          against a 6% target. The spreading force has most of its work ahead of it.
+        </figcaption>
+      </figure>
       <p>
         When this stage finishes, cells are at arbitrary real-valued coordinates and may still overlap each
         other. That is expected. It was solving a relaxed problem on purpose.
@@ -371,8 +380,8 @@
         </p>
       </details>
       <p class="in-demo">
-        <strong>In the demo.</strong> The Global place stage has a C++ rendering of the placer in its explainer.
-        The code that actually runs is <a href="/eda/flow/globalplace.js">/eda/flow/globalplace.js</a>.
+        <strong>In the demo.</strong> A C++ rendering of the placer is just below, and in the Global place
+        stage's explainer. The code that actually runs is <a href="/eda/flow/globalplace.js">/eda/flow/globalplace.js</a>.
       </p>
     </section>
 
@@ -434,8 +443,8 @@
         </p>
       </details>
       <p class="in-demo">
-        <strong>In the demo.</strong> The Legalise stage has a C++ rendering of Abacus in its explainer. The
-        code that actually runs is <a href="/eda/flow/legalize.js">/eda/flow/legalize.js</a>.
+        <strong>In the demo.</strong> A C++ rendering of Abacus is just below, and in the Legalise stage's
+        explainer. The code that actually runs is <a href="/eda/flow/legalize.js">/eda/flow/legalize.js</a>.
       </p>
     </section>
 
@@ -512,7 +521,7 @@
         works through its capacitance, slowing the buffer driving it by R<sub>drive</sub> × C<sub>snake</sub>,
         and only that buffer's subtree sees it. On the registered adder this takes skew from about 20 ps to
         under 1 ps. What it does not do is zero-skew merging (DME), which chooses the merge points themselves
-        for balance rather than fixing the delays afterwards. The stage's explainer has the algorithm as C++;
+        for balance rather than fixing the delays afterwards. The algorithm is below as C++;
         the code that runs is <a href="/eda/flow/cts.js">/eda/flow/cts.js</a>.
       </p>
     </section>
@@ -568,8 +577,8 @@
         missing, or a 60 ps DLY cell if not, placed on the nearest free site just in front of the pin, provided
         its setup slack keeps 25 ps afterwards. On the registered adder all 17 input flops fail, at about −27 ps
         once the balanced clock tree is in. After the fix the worst hold slack is about +50 ps, and setup barely
-        moves. Push utilisation to 85% and some cells no longer fit; the log says which. The code is
-        <a href="/eda/flow/holdfix.js">/eda/flow/holdfix.js</a>.
+        moves. Push utilisation to 85% and some cells no longer fit; the log says which. The algorithm is
+        below as C++; the code that runs is <a href="/eda/flow/holdfix.js">/eda/flow/holdfix.js</a>.
       </p>
     </section>
 
@@ -592,6 +601,15 @@
         valid if no boundary is asked to carry more nets than it has tracks for. Congestion is the measure of
         how badly that is being violated, and relieving it is what the stage spends its time on.
       </p>
+      <figure class="guide-fig">
+        <img src="/eda/guide/img/congestion.jpg" width="2540" height="1536" loading="lazy"
+             alt="The routed 16-bit adder with the congestion overlay on: tiles shaded from green through amber to red, with the reddest tiles in the middle rows and along the right edge where the outputs leave." />
+        <figcaption>
+          The Congestion overlay after global routing, at the default 50% routing supply. Each tile is shaded by
+          how close its busiest boundary is to its track capacity, green to red. The middle rows and the right edge, where the
+          sums leave the block, run at capacity; the router negotiated it down to zero overflow.
+        </figcaption>
+      </figure>
 
       <dl class="spec">
         <div><dt>In</dt><dd>A legal placement with a clock tree</dd></div>
@@ -631,7 +649,7 @@
         first as the cheaper L-shape, and then overflowing nets are ripped up and rerouted with A* under
         PathFinder's negotiated-congestion cost. While it runs, the overlay shows demand on each tile boundary;
         detail routing replaces that with the actual wires. The clock is left out because clock tree synthesis
-        already routed it. The stage's explainer has the algorithm as C++; the code that runs is
+        already routed it. The algorithm is below as C++; the code that runs is
         <a href="/eda/flow/groute.js">/eda/flow/groute.js</a>.
       </p>
     </section>
@@ -657,6 +675,15 @@
         violates another, which is why the last few violations in a congested corner can take as long as the
         first ninety-nine per cent of the design.
       </p>
+      <figure class="guide-fig">
+        <img src="/eda/guide/img/layers.jpg" width="2540" height="1514" loading="lazy"
+             alt="The detail-routed 16-bit adder: horizontal wires in green and blue, vertical wires in amber and violet, short pink drops onto the cells, and small squares marking vias." />
+        <figcaption>
+          The same adder after detail routing, with Routes on. Horizontal runs sit on M3 (green) and M5 (blue),
+          vertical ones on M4 (amber) and M6 (violet), and the small squares are vias. The thick upper layers
+          carry the long runs; M2 (pink) makes the short hops down to the pins.
+        </figcaption>
+      </figure>
 
       <dl class="spec">
         <div><dt>In</dt><dd>The global route plan</dd></div>
@@ -697,8 +724,8 @@
         shorts; starve it of routing supply and the survivors are reported by net and position. Extraction:
         every net becomes an RC tree from its segments, each on its own layer, plus via resistance, and timing
         reads the Elmore delay to each sink. What is left out: a maze search over the full track grid, spacing
-        and end-of-line rules beyond a pitch, and real pin access into the cells' own M1. The code is
-        <a href="/eda/flow/droute.js">/eda/flow/droute.js</a>.
+        and end-of-line rules beyond a pitch, and real pin access into the cells' own M1. The algorithm is
+        below as C++; the code that runs is <a href="/eda/flow/droute.js">/eda/flow/droute.js</a>.
       </p>
     </section>
 
@@ -768,8 +795,8 @@
         latency from the clock tree. Setup and hold are checked at every flop, in a single corner, and the log
         prints the critical path. The same code runs earlier on estimates, inside hold fixing. On these small
         blocks wires are short, so extraction moves a sink's delay by a fraction of a picosecond; on a real
-        chip, where wires are long and thin, that difference is where timing closure lives. The stage's
-        explainer has the algorithm as C++; the code that runs is
+        chip, where wires are long and thin, that difference is where timing closure lives. The algorithm
+        is below as C++; the code that runs is
         <a href="/eda/flow/sta.js">/eda/flow/sta.js</a>.
       </p>
     </section>
@@ -809,7 +836,8 @@
         delay cells, a negotiated-congestion global router, a track-assigning detail router with RC
         extraction, and static timing analysis with setup and hold checks. They are the genuine article, scaled down — the same objectives,
         the same models, the same failure modes, on hundreds of cells instead of hundreds of thousands. From the
-        floorplan onwards, each stage's explainer in the demo includes its algorithm written out as C++. It runs in a Web Worker so the numerical loop does not freeze the page, and draws to a
+        floorplan onwards, each stage's algorithm is written out as C++, both in this primer and in the stage's
+        explainer in the demo, from one source: <a href="/eda/ui/cpp.js">/eda/ui/cpp.js</a>. It runs in a Web Worker so the numerical loop does not freeze the page, and draws to a
         canvas so that thousands of flylines stay smooth.
       </p>
       <p>
@@ -824,5 +852,6 @@
       </p>
     </section>
   </main>
+  <script type="module" src="/eda/guide/cpp.js"></script>
 </body>
 </html>

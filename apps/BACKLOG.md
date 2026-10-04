@@ -332,10 +332,6 @@ roughly by how much a reviewer would notice:
   cells (re-legalise the row) before giving up. Done when the 85 % case has no
   unfixed holds.
 
-- [ ] **EDA-7 — Primer pictures (S).** The primer is all text. Add three
-  screenshots from the demo (placement density, congestion map, routed
-  layers) at the matching sections.
-
 ---
 
 ## Public portfolio (`/`)
@@ -367,6 +363,8 @@ roughly by how much a reviewer would notice:
 ---
 
 ## Done log
+
+- 2026-10-04 — EDA-7: the primer has three demo pictures (mid-placement density, congestion, routed layers, in `eda/guide/img/`) and each stage's C++ listing inline (`eda/guide/cpp.js`, from `eda/ui/cpp.js`).
 
 - 2026-10-04 — Patterns: PAT-2 complete. The last 10 notes got before/after frames via `promote()`; all 32 patterns are animated.
 

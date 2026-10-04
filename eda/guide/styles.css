@@ -196,6 +196,44 @@
 .deeper p:first-of-type { margin-top: 16px; }
 .deeper p { font-size: 0.92rem; }
 
+.deeper.cpp { margin-top: 14px; }
+.deeper.cpp a { color: var(--accent); font-family: var(--mono); font-size: 0.9em; }
+.deeper.cpp pre {
+  margin: 0 0 14px;
+  max-height: 60vh;
+  overflow: auto;
+  border-radius: 8px;
+  background: #0b0f14;
+  border: 1px solid var(--border);
+}
+.deeper.cpp pre code {
+  display: block;
+  padding: 12px 14px;
+  background: none;
+  border-radius: 0;
+  font-size: 0.76rem;
+  line-height: 1.55;
+  white-space: pre;
+}
+
+/* ---------------------------------------------------------------- figures */
+
+.guide-fig { margin: 22px 0 6px; }
+.guide-fig img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #0b0f14;
+}
+.guide-fig figcaption {
+  margin-top: 8px;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--muted, #8b949e);
+}
+
 /* ---------------------------------------------------------------- callout */
 
 .callout {
