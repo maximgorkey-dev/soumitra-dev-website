@@ -1,7 +1,9 @@
 # Design patterns in C++ — build roadmap
 
-Status (2026-10-04): batches 0–4 shipped — 11 animated patterns, the objects
-view and the memory view. Next: batch 5.
+Status (2026-10-04): batches 0–5 shipped — 11 animated patterns plus 21
+one-page notes (built with `note()` in `pat-common.js`; files
+`pat-creational.js`, `pat-structural.js`, `pat-behavioural-notes.js`,
+`pat-modern-notes.js`). The roadmap is complete; see Deferred for what's left.
 
 - Frame fields for both views, and the explanation block format, are
   documented in `apps/algorithms/topics/pat-common.js`.

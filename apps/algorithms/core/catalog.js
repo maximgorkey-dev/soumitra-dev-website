@@ -45,6 +45,10 @@ import { raii } from "../topics/pat-raii.js";
 import { crtp } from "../topics/pat-crtp.js";
 import { typeErasure } from "../topics/pat-type-erasure.js";
 import { variant } from "../topics/pat-variant.js";
+import { factoryMethod, abstractFactory, builder, prototype, singleton } from "../topics/pat-creational.js";
+import { adapter, facade, proxy, bridge, flyweight } from "../topics/pat-structural.js";
+import { templateMethod, iterator, chain, mediator, memento } from "../topics/pat-behavioural-notes.js";
+import { pimpl, nvi, ruleOfZero, policy, ranges, concepts } from "../topics/pat-modern-notes.js";
 
 export const ALGORITHMS = [
   bfs, dfs,
@@ -58,8 +62,12 @@ export const ALGORITHMS = [
   diameter,
 
   strategy, observer, command, state, visitor,
+  templateMethod, iterator, chain, mediator, memento,
   decorator, composite,
+  adapter, facade, proxy, bridge, flyweight,
   raii, crtp, typeErasure, variant,
+  pimpl, nvi, ruleOfZero, policy, ranges, concepts,
+  factoryMethod, abstractFactory, builder, prototype, singleton,
 ];
 
 /* Kruskal rather than the first entry: it is the most complete treatment here,
