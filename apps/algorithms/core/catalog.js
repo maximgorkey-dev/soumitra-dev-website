@@ -34,6 +34,9 @@ import { colouring } from "../topics/graph-colouring.js";
 import { euler } from "../topics/euler-circuit.js";
 import { diameter } from "../topics/tree-diameter.js";
 
+import { binarySearch, twoPointers, prefixSums, kadane } from "../topics/seq-arrays.js";
+import { longestUnique, windowMax, nextGreater } from "../topics/seq-windows.js";
+
 import { strategy } from "../topics/pat-strategy.js";
 import { observer } from "../topics/pat-observer.js";
 import { command } from "../topics/pat-command.js";
@@ -60,6 +63,8 @@ export const ALGORITHMS = [
   colouring,
   euler,
   diameter,
+  binarySearch, twoPointers, prefixSums, kadane,
+  longestUnique, windowMax, nextGreater,
 
   strategy, observer, command, state, visitor,
   templateMethod, iterator, chain, mediator, memento,

@@ -194,6 +194,30 @@
 .mv-log-line { fill: #8b949e; font-family: var(--mono); font-size: 12px; white-space: pre; }
 .mv-log-new { fill: #3fb950; font-weight: 600; }
 
+/* Sequence view. States share the graph palette: yellow is "looking at it now",
+   green is settled, purple is being compared, red is the pivot or a conflict. */
+.sv-name { fill: #8b949e; font-family: var(--mono); font-size: 11.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+.sv-index { fill: #6e7681; font-family: var(--mono); font-size: 10.5px; }
+.sv-cell { fill: #161b22; stroke: #30363d; stroke-width: 1.5; transition: fill 0.2s, stroke 0.2s, opacity 0.2s; }
+.sv-empty { fill: none; stroke-dasharray: 4 4; }
+.sv-cell[data-state="active"] { stroke: #e3b341; stroke-width: 2.5; fill: rgba(227, 179, 65, 0.16); }
+.sv-cell[data-state="compared"] { stroke: #d2a8ff; stroke-width: 2.5; fill: rgba(210, 168, 255, 0.14); }
+.sv-cell[data-state="selected"] { stroke: #58a6ff; stroke-width: 2.5; fill: rgba(88, 166, 255, 0.16); }
+.sv-cell[data-state="sorted"], .sv-cell[data-state="found"] { stroke: #3fb950; stroke-width: 2.5; fill: rgba(63, 185, 80, 0.16); }
+.sv-cell[data-state="pivot"] { stroke: #f85149; stroke-width: 2.5; fill: rgba(248, 81, 73, 0.14); }
+.sv-cell[data-state="excluded"] { opacity: 0.35; }
+.sv-val { fill: var(--text); font-family: var(--mono); font-weight: 500; }
+.sv-val[data-state="excluded"] { opacity: 0.4; }
+.sv-ptr { stroke: #58a6ff; stroke-width: 1.6; }
+.sv-tip { fill: #58a6ff; }
+.sv-ptr-label { fill: #79c0ff; font-family: var(--mono); font-size: 11px; font-weight: 600; }
+.sv-range { fill: none; stroke: #e3b341; stroke-width: 1.6; }
+.sv-range-label { fill: #e3b341; font-family: var(--mono); font-size: 10.5px; }
+.sv-range[data-state="best"] { stroke: #3fb950; }
+.sv-range-label[data-state="best"] { fill: #3fb950; }
+.sv-range[data-state="done"] { stroke: #6e7681; stroke-dasharray: 4 3; }
+.sv-range-label[data-state="done"] { fill: #6e7681; }
+
 .gv-weight rect { fill: #0a0d12; stroke: #30363d; stroke-width: 1; transition: stroke 0.2s ease; }
 .gv-weight text { fill: var(--text-dim); font-family: var(--mono); font-size: 12px; }
 .gv-weight[data-state="candidate"] rect { stroke: #e3b341; }

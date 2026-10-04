@@ -16,7 +16,7 @@ let bad = 0;
 const fail = (id, msg) => { bad++; console.log(`  FAIL ${id}: ${msg}`); };
 for (const a of ALGORITHMS) {
   const frames = record(a.run(a.structure));
-  if (a.section !== "Design patterns") continue;
+  if (a.structure.kind === "graph") continue;
   // structural sanity, so a typo shows here rather than as a blank box
   frames.forEach((f, i) => {
     const m = f.marks || {};
@@ -25,6 +25,14 @@ for (const a of ALGORITHMS) {
       for (const o of m.objects || []) { if (ids.has(o.id)) fail(a.id, `frame ${i}: duplicate box ${o.id}`); ids.add(o.id); }
       for (const l of m.links || []) if (!ids.has(l.from) || !ids.has(l.to)) fail(a.id, `frame ${i}: link ${l.from}->${l.to}`);
       if (m.msg && (!ids.has(m.msg.from) || !ids.has(m.msg.to))) fail(a.id, `frame ${i}: msg ${m.msg.from}->${m.msg.to}`);
+    } else if (a.structure.kind === "sequence") {
+      if (!(m.rows || []).length) fail(a.id, `frame ${i}: no rows`);
+      for (const r of m.rows || []) {
+        const n = (r.values || []).length;
+        for (const k of Object.keys(r.cells || {})) if (+k < 0 || +k >= n) fail(a.id, `frame ${i}: ${r.name} cell ${k} of ${n}`);
+        for (const p of r.pointers || []) if (p.at < 0 || p.at > n) fail(a.id, `frame ${i}: ${r.name} pointer ${p.name} at ${p.at} of ${n}`);
+        for (const g of r.ranges || []) if (g.from < 0 || g.to >= n || g.from > g.to) fail(a.id, `frame ${i}: ${r.name} range ${g.from}..${g.to} of ${n}`);
+      }
     } else {
       const ids = new Set((m.blocks || []).map((b) => b.id));
       for (const b of m.blocks || []) {
@@ -34,7 +42,10 @@ for (const a of ALGORITHMS) {
     }
   });
   for (const b of a.explanation) if (typeof b !== "string" && !b.h && !b.list && !b.tip) fail(a.id, "unknown explanation block");
-  const out = frames.flatMap((f) => f.metrics.filter((r) => r.label === "printed").map((r) => r.value));
+  const out = a.structure.kind === "sequence"
+    ? frames[frames.length - 1].metrics.filter((r) => r.label === "Result").map((r) => r.value)
+    : frames.flatMap((f) => f.metrics.filter((r) => r.label === "printed").map((r) => r.value));
+  if (a.structure.kind === "sequence" && !out.length) fail(a.id, "last frame has no Result");
   const traced = a.code.files.filter((f) => f.traced);
   if (traced.length !== 1) fail(a.id, `${traced.length} traced files`);
   fs.mkdirSync(`/tmp/pt/src/${a.id}`, { recursive: true });
@@ -81,6 +92,7 @@ import { record } from "./core/trace.js";
 import { createObjectsView } from "./views/objects.js";
 const views = { objects: createObjectsView };
 try { views.memory = (await import("./views/memory.js")).createMemoryView; } catch {}
+try { views.sequence = (await import("./views/sequence.js")).createSequenceView; } catch {}
 const q = new URLSearchParams(location.search);
 const a = byId(q.get("t"));
 const frames = record(a.run(a.structure));

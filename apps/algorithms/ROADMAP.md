@@ -149,11 +149,20 @@ Five steps, repeated for `sequence`, then `grid`, then `tree`.
 
 ---
 
-## 6. Renderer 1 — `sequence`, provisional design
+## 6. Renderer 1 — `sequence`
 
-To be frozen in step 1 above, then written into `CONTRACT.md` in step 3. It is
-provisional here precisely so that the spec is not published before the
-renderer proves it.
+**Shipped 2026-10-04**, written entirely on this account (the other account is
+no longer available, so sections 7 and 9's hand-off no longer apply; this
+account writes the waves itself). The frozen frame contract is the header of
+`views/sequence.js`; it differs from the sketch below in one way: values live
+in `marks.rows[]` per frame, not in the structure, because they change.
+Topics: `seq-arrays.js` (binary search, two pointers, prefix sums, Kadane) and
+`seq-windows.js` (longest unique substring, sliding window maximum, next
+greater element). Each ends with a `Result` metric that
+`tools/patterns-selftest.sh` checks against the topic's compiled C++.
+Next on `sequence`: KMP, bit manipulation, house robber / LIS. Then `grid`.
+
+The original provisional sketch:
 
 ```js
 structure = {

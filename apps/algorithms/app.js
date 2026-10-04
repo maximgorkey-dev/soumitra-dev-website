@@ -12,11 +12,12 @@ import { record } from "./core/trace.js";
 import { createGraphView } from "./views/graph.js";
 import { createObjectsView } from "./views/objects.js";
 import { createMemoryView } from "./views/memory.js";
+import { createSequenceView } from "./views/sequence.js";
 
 const el = (id) => document.getElementById(id);
 
 /** One renderer per structure kind. Arrays and trees join this map later. */
-const VIEWS = { graph: createGraphView, objects: createObjectsView, memory: createMemoryView };
+const VIEWS = { graph: createGraphView, objects: createObjectsView, memory: createMemoryView, sequence: createSequenceView };
 
 /** Which tab panels exist, in bar order. */
 const PANELS = ["explain", "code", "analysis", "run"];
