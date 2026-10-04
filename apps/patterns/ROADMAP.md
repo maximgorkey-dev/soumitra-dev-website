@@ -1,9 +1,10 @@
 # Design patterns in C++ — build roadmap
 
-Status (2026-10-04): batches 0–5 shipped — 11 animated patterns plus 21
-one-page notes (built with `note()` in `pat-common.js`; files
+Status (2026-10-04): batches 0–5 shipped, plus promotions — 17 animated
+patterns, 15 one-page notes (built with `note()` in `pat-common.js`; files
 `pat-creational.js`, `pat-structural.js`, `pat-behavioural-notes.js`,
-`pat-modern-notes.js`). The roadmap is complete; see Deferred for what's left.
+`pat-modern-notes.js`), and a pattern map (`pat-map.js`, the section's
+landing page) relating them. See Deferred for what's left.
 
 - Frame fields for both views, and the explanation block format, are
   documented in `apps/algorithms/topics/pat-common.js`.
@@ -108,9 +109,18 @@ Batch 5 list:
 - **Modern C++:** PIMPL, Non-Virtual Interface, the rule of zero,
   policy-based design, ranges pipelines, concepts as compile-time interfaces.
 
-Any batch 5 note can be promoted to an animated topic later. Chain of
-Responsibility (`topics/pat-chain.js`) and Mediator (`topics/pat-mediator.js`)
-were promoted on 2026-10-04.
+Any batch 5 note can be promoted to an animated topic later. Promoted on
+2026-10-04, each with before/after/run frames and a traced listing: Chain of
+Responsibility, Mediator, Iterator (ring buffer), Memento (editor undo), Proxy
+(lazy gallery) and Flyweight (forest), in `topics/pat-<name>.js`.
+
+The **pattern map** (`topics/pat-map.js`, topic "Start here") is one objects
+diagram of 17 patterns linked by the difference that separates each pair,
+walked through by family: wrappers, swappable behaviour, classic vs modern,
+undo, notification. Its listing binds one Strategy three ways (virtual,
+policy, `std::function`). Box layout is a 4×5 grid with pairs vertical or
+diagonal, because link labels sit beside the line and collide on short
+horizontal links.
 
 ## Deferred
 

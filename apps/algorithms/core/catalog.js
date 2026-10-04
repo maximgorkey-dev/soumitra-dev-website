@@ -51,8 +51,13 @@ import { crtp } from "../topics/pat-crtp.js";
 import { typeErasure } from "../topics/pat-type-erasure.js";
 import { variant } from "../topics/pat-variant.js";
 import { factoryMethod, abstractFactory, builder, prototype, singleton } from "../topics/pat-creational.js";
-import { adapter, facade, proxy, bridge, flyweight } from "../topics/pat-structural.js";
-import { templateMethod, iterator, memento } from "../topics/pat-behavioural-notes.js";
+import { adapter, facade, bridge } from "../topics/pat-structural.js";
+import { templateMethod } from "../topics/pat-behavioural-notes.js";
+import { iterator } from "../topics/pat-iterator.js";
+import { memento } from "../topics/pat-memento.js";
+import { proxy } from "../topics/pat-proxy.js";
+import { flyweight } from "../topics/pat-flyweight.js";
+import { patternMap } from "../topics/pat-map.js";
 import { chain } from "../topics/pat-chain.js";
 import { mediator } from "../topics/pat-mediator.js";
 import { pimpl, nvi, ruleOfZero, policy, ranges, concepts } from "../topics/pat-modern-notes.js";
@@ -71,6 +76,7 @@ export const ALGORITHMS = [
   longestUnique, windowMax, nextGreater,
   lcs, gridBfs,
 
+  patternMap,
   strategy, observer, command, state, visitor,
   templateMethod, iterator, chain, mediator, memento,
   decorator, composite,
