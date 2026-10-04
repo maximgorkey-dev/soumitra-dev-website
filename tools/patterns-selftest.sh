@@ -33,6 +33,15 @@ for (const a of ALGORITHMS) {
         for (const p of r.pointers || []) if (p.at < 0 || p.at > n) fail(a.id, `frame ${i}: ${r.name} pointer ${p.name} at ${p.at} of ${n}`);
         for (const g of r.ranges || []) if (g.from < 0 || g.to >= n || g.from > g.to) fail(a.id, `frame ${i}: ${r.name} range ${g.from}..${g.to} of ${n}`);
       }
+    } else if (a.structure.kind === "grid") {
+      if (!(m.grids || []).length) fail(a.id, `frame ${i}: no grids`);
+      for (const g of m.grids || []) {
+        const R = (g.values || []).length, C = R ? g.values[0].length : 0;
+        const inside = ([r, c]) => r >= 0 && r < R && c >= 0 && c < C;
+        if (!R || g.values.some((row) => row.length !== C)) fail(a.id, `frame ${i}: ragged or empty grid`);
+        for (const k of Object.keys(g.cells || {})) if (!inside(k.split(",").map(Number))) fail(a.id, `frame ${i}: cell ${k} outside ${R}x${C}`);
+        for (const ar of g.arrows || []) if (!inside(ar.from) || !inside(ar.to)) fail(a.id, `frame ${i}: arrow ${ar.from}->${ar.to} outside ${R}x${C}`);
+      }
     } else {
       const ids = new Set((m.blocks || []).map((b) => b.id));
       for (const b of m.blocks || []) {
@@ -42,10 +51,11 @@ for (const a of ALGORITHMS) {
     }
   });
   for (const b of a.explanation) if (typeof b !== "string" && !b.h && !b.list && !b.tip) fail(a.id, "unknown explanation block");
-  const out = a.structure.kind === "sequence"
+  const byResult = a.structure.kind === "sequence" || a.structure.kind === "grid";
+  const out = byResult
     ? frames[frames.length - 1].metrics.filter((r) => r.label === "Result").map((r) => r.value)
     : frames.flatMap((f) => f.metrics.filter((r) => r.label === "printed").map((r) => r.value));
-  if (a.structure.kind === "sequence" && !out.length) fail(a.id, "last frame has no Result");
+  if (byResult && !out.length) fail(a.id, "last frame has no Result");
   const traced = a.code.files.filter((f) => f.traced);
   if (traced.length !== 1) fail(a.id, `${traced.length} traced files`);
   fs.mkdirSync(`/tmp/pt/src/${a.id}`, { recursive: true });
@@ -93,6 +103,7 @@ import { createObjectsView } from "./views/objects.js";
 const views = { objects: createObjectsView };
 try { views.memory = (await import("./views/memory.js")).createMemoryView; } catch {}
 try { views.sequence = (await import("./views/sequence.js")).createSequenceView; } catch {}
+try { views.grid = (await import("./views/grid.js")).createGridView; } catch {}
 const q = new URLSearchParams(location.search);
 const a = byId(q.get("t"));
 const frames = record(a.run(a.structure));

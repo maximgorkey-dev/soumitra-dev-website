@@ -36,6 +36,8 @@ import { diameter } from "../topics/tree-diameter.js";
 
 import { binarySearch, twoPointers, prefixSums, kadane } from "../topics/seq-arrays.js";
 import { longestUnique, windowMax, nextGreater } from "../topics/seq-windows.js";
+import { lcs } from "../topics/grid-dp.js";
+import { gridBfs } from "../topics/grid-search.js";
 
 import { strategy } from "../topics/pat-strategy.js";
 import { observer } from "../topics/pat-observer.js";
@@ -67,6 +69,7 @@ export const ALGORITHMS = [
   diameter,
   binarySearch, twoPointers, prefixSums, kadane,
   longestUnique, windowMax, nextGreater,
+  lcs, gridBfs,
 
   strategy, observer, command, state, visitor,
   templateMethod, iterator, chain, mediator, memento,

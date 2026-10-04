@@ -13,11 +13,12 @@ import { createGraphView } from "./views/graph.js";
 import { createObjectsView } from "./views/objects.js";
 import { createMemoryView } from "./views/memory.js";
 import { createSequenceView } from "./views/sequence.js";
+import { createGridView } from "./views/grid.js";
 
 const el = (id) => document.getElementById(id);
 
-/** One renderer per structure kind. Arrays and trees join this map later. */
-const VIEWS = { graph: createGraphView, objects: createObjectsView, memory: createMemoryView, sequence: createSequenceView };
+/** One renderer per structure kind. Trees join this map later. */
+const VIEWS = { graph: createGraphView, objects: createObjectsView, memory: createMemoryView, sequence: createSequenceView, grid: createGridView };
 
 /** Which tab panels exist, in bar order. */
 const PANELS = ["explain", "code", "analysis", "run"];

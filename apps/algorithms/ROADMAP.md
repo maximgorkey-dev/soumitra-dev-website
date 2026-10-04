@@ -103,8 +103,8 @@ Four renderers cover all 21 categories originally asked about.
 | Categories | Renderer | Status |
 |---|---|---|
 | Topological sort, union-find, and all remaining graph work | `graph` | **exists** |
-| Arrays, strings, sliding window, stack, queues, monotonic stack, monotonic queue, bit manipulation | `sequence` | to build |
-| Matrix, 2D dynamic programming, combinatorics (Pascal), game theory (Grundy tables) | `grid` | to build |
+| Arrays, strings, sliding window, stack, queues, monotonic stack, monotonic queue, bit manipulation | `sequence` | **exists** |
+| Matrix, 2D dynamic programming, combinatorics (Pascal), game theory (Grundy tables), grid search | `grid` | **exists** |
 | Trees, heap, tries, segment tree, binary indexed tree, backtracking (recursion tree) | `tree` | to build |
 | Probability and statistics | `chart` | optional |
 
@@ -160,7 +160,19 @@ Topics: `seq-arrays.js` (binary search, two pointers, prefix sums, Kadane) and
 `seq-windows.js` (longest unique substring, sliding window maximum, next
 greater element). Each ends with a `Result` metric that
 `tools/patterns-selftest.sh` checks against the topic's compiled C++.
-Next on `sequence`: KMP, bit manipulation, house robber / LIS. Then `grid`.
+Next on `sequence`: KMP, bit manipulation, house robber / LIS.
+
+**`grid` shipped 2026-10-04.** The frozen contract is the header of
+`views/grid.js`: `marks.grids[]`, each with row-major `values`, optional row
+and column labels with their own highlight states, per-cell states keyed
+`"r,c"` (including `wall`, `frontier`, `visited`, `path` for search), and
+`arrows` from cell to cell for DP dependencies or search parents. Topics:
+`grid-dp.js` (longest common subsequence) and `grid-search.js` (shortest path
+in a maze by BFS). Both end in `Result` metrics checked against their C++ by
+`tools/patterns-selftest.sh`, which now validates grid frames too.
+Next on `grid`: edit distance, 0/1 knapsack, unique paths and minimum path
+sum, Pascal's triangle; flood fill / number of islands, multi-source BFS
+(rotting oranges), 0-1 BFS, A* on a grid; N-Queens once `tree` exists.
 
 The original provisional sketch:
 
