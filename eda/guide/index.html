@@ -41,9 +41,10 @@
         number it is minimising, what it is not allowed to break, and the characteristic way each one fails.
       </p>
       <p class="guide-lead">
-        The <a href="/eda/">interactive demo</a> runs four of these stages for real, on a small design, in your
-        browser. The rest are explained here because a flow described only as far as someone got round to
-        implementing it is a misleading picture of the flow.
+        The <a href="/eda/">interactive demo</a> runs seven of these stages for real, from the netlist through
+        to timing, on a small design, in your browser. Synthesis, detail routing and signoff are explained here
+        too, because a flow described only as far as someone got round to implementing it is a misleading
+        picture of the flow.
       </p>
     </section>
 
@@ -54,10 +55,10 @@
       <a class="flow-chip flow-live" href="#floorplan"><span>Floorplan</span><em>runs</em></a>
       <a class="flow-chip flow-live" href="#place"><span>Global place</span><em>runs</em></a>
       <a class="flow-chip flow-live" href="#legalize"><span>Legalise</span><em>runs</em></a>
-      <a class="flow-chip" href="#cts"><span>Clock tree</span><em>explained</em></a>
-      <a class="flow-chip" href="#groute"><span>Global route</span><em>explained</em></a>
+      <a class="flow-chip flow-live" href="#cts"><span>Clock tree</span><em>runs</em></a>
+      <a class="flow-chip flow-live" href="#groute"><span>Global route</span><em>runs</em></a>
       <a class="flow-chip" href="#droute"><span>Detail route</span><em>explained</em></a>
-      <a class="flow-chip" href="#sta"><span>Timing</span><em>explained</em></a>
+      <a class="flow-chip flow-live" href="#sta"><span>Timing</span><em>runs</em></a>
       <a class="flow-chip" href="#signoff"><span>Signoff</span><em>explained</em></a>
     </nav>
 
@@ -269,6 +270,10 @@
           places perfectly well and then turns out to be unroutable, two stages and a lot of runtime later.
         </p>
       </details>
+      <p class="in-demo">
+        <strong>In the demo.</strong> Click the Floorplan stage to see its explainer, with the algorithm written
+        out as C++. The code that actually runs is <a href="/eda/flow/floorplan.js">/eda/flow/floorplan.js</a>.
+      </p>
     </section>
 
     <!-- ------------------------------------------------------- place -->
@@ -364,6 +369,10 @@
           discovery to the router.
         </p>
       </details>
+      <p class="in-demo">
+        <strong>In the demo.</strong> The Global place stage has a C++ rendering of the placer in its explainer.
+        The code that actually runs is <a href="/eda/flow/globalplace.js">/eda/flow/globalplace.js</a>.
+      </p>
     </section>
 
     <!-- ------------------------------------------------------- legalize -->
@@ -423,13 +432,17 @@
           than a global optimisation, and it is where a few more percent of wirelength is recovered.
         </p>
       </details>
+      <p class="in-demo">
+        <strong>In the demo.</strong> The Legalise stage has a C++ rendering of Abacus in its explainer. The
+        code that actually runs is <a href="/eda/flow/legalize.js">/eda/flow/legalize.js</a>.
+      </p>
     </section>
 
     <!-- ------------------------------------------------------- cts -->
     <section class="guide-section" id="cts">
       <div class="guide-head">
         <h2>Clock tree synthesis</h2>
-        <span class="badge">not run in the demo</span>
+        <span class="badge badge-live">runs in the demo</span>
       </div>
 
       <p>
@@ -487,13 +500,22 @@
           capturing path is fast, or the reverse, whichever is worse.
         </p>
       </details>
+      <p class="in-demo">
+        <strong>In the demo.</strong> The clock tree is built geometrically, by the method of means and medians:
+        the flops are split in two at the median along the longer side of their bounding box, each half again,
+        until a group is small enough for one buffer, with a buffer at the centroid of every group. Delays are
+        Elmore, and the stage reports skew and insertion delay. Two simplifications: buffers are timed at their
+        ideal positions rather than legalised into rows, and the residual skew is not balanced out by zero-skew
+        merging or wire snaking. The stage's explainer has the algorithm as C++; the code that runs is
+        <a href="/eda/flow/cts.js">/eda/flow/cts.js</a>.
+      </p>
     </section>
 
     <!-- ------------------------------------------------------- groute -->
     <section class="guide-section" id="groute">
       <div class="guide-head">
         <h2>Global routing</h2>
-        <span class="badge">not run in the demo</span>
+        <span class="badge badge-live">runs in the demo</span>
       </div>
 
       <p>
@@ -541,6 +563,14 @@
           placement for exactly this reason.
         </p>
       </details>
+      <p class="in-demo">
+        <strong>In the demo.</strong> The core is cut into a grid of tiles with a track capacity on every tile
+        boundary. Each net is decomposed into two-pin connections along its minimum spanning tree, routed first
+        as the cheaper L-shape, and then overflowing nets are ripped up and rerouted with A* under PathFinder's
+        negotiated-congestion cost. The overlay shows demand on each tile boundary rather than per-net wires,
+        and the clock is left out because clock tree synthesis already routed it. The stage's explainer has the
+        algorithm as C++; the code that runs is <a href="/eda/flow/groute.js">/eda/flow/groute.js</a>.
+      </p>
     </section>
 
     <!-- ------------------------------------------------------- droute -->
@@ -599,7 +629,7 @@
     <section class="guide-section" id="sta">
       <div class="guide-head">
         <h2>Static timing analysis</h2>
-        <span class="badge">not run in the demo</span>
+        <span class="badge badge-live">runs in the demo</span>
       </div>
 
       <p>
@@ -655,6 +685,15 @@
           is where most of the schedule on a real chip actually goes.
         </p>
       </details>
+      <p class="in-demo">
+        <strong>In the demo.</strong> Arrival times are propagated in one topological pass, with cell delays
+        from the library, Elmore wire delays on global-route lengths (bounding-box estimates if routing has not
+        run), and each flop's clock latency from the clock tree. Setup and hold are checked at every flop, in a
+        single corner. Nothing fixes hold afterwards, so expect the default registered adder to show a small
+        negative hold slack, around −21 ps: its clock skew is larger than the margin on its shortest path. A
+        real flow would insert delay buffers on that path. The stage's explainer has the algorithm as C++; the
+        code that runs is <a href="/eda/flow/sta.js">/eda/flow/sta.js</a>.
+      </p>
     </section>
 
     <!-- ------------------------------------------------------- signoff -->
@@ -686,11 +725,12 @@
       <div class="guide-head"><h2>What the demo actually runs</h2></div>
 
       <p>
-        Four stages, with real algorithms rather than animations of algorithms: the netlist compiler, the
-        floorplanner with its packing feasibility check, an analytic force-directed global placer, and an
-        Abacus legaliser. The placer and the legaliser are the genuine article, scaled down — the same
-        objective, the same net model, the same failure modes, on hundreds of cells instead of hundreds of
-        thousands. It runs in a Web Worker so the numerical loop does not freeze the page, and draws to a
+        Seven stages, with real algorithms rather than animations of algorithms: the netlist compiler, the
+        floorplanner with its packing feasibility check, an analytic force-directed global placer, an Abacus
+        legaliser, a means-and-medians clock tree, a negotiated-congestion global router, and static timing
+        analysis with setup and hold checks. They are the genuine article, scaled down — the same objectives,
+        the same models, the same failure modes, on hundreds of cells instead of hundreds of thousands. From the
+        floorplan onwards, each stage's explainer in the demo includes its algorithm written out as C++. It runs in a Web Worker so the numerical loop does not freeze the page, and draws to a
         canvas so that thousands of flylines stay smooth.
       </p>
       <p>

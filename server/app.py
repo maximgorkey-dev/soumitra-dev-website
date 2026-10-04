@@ -142,7 +142,8 @@ CREATE TABLE IF NOT EXISTS files (
   mime TEXT NOT NULL,
   size INTEGER NOT NULL,
   inline INTEGER NOT NULL DEFAULT 0,
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  orphaned_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_files_owner ON files (owner);
 """
@@ -174,6 +175,7 @@ def db() -> Iterator[sqlite3.Connection]:
 MIGRATIONS: list[tuple[str, str, str]] = [
     ("notes", "span_w", "ALTER TABLE notes ADD COLUMN span_w INTEGER NOT NULL DEFAULT 1"),
     ("notes", "height_px", "ALTER TABLE notes ADD COLUMN height_px INTEGER NOT NULL DEFAULT 0"),
+    ("files", "orphaned_at", "ALTER TABLE files ADD COLUMN orphaned_at TEXT"),
 ]
 
 
@@ -1175,6 +1177,65 @@ def get_file(file_id: str, user: str = User) -> FileResponse:
             "Cache-Control": "private, max-age=31536000, immutable",
         },
     )
+
+
+# A file nothing refers to is marked orphaned, and deleted only after a grace
+# period. Uploads land before the note that uses them is saved, and a database
+# restored from a recent backup must still find its files.
+ORPHAN_GRACE = timedelta(days=7)
+SWEEP_EVERY = 6 * 3600
+FILE_REF_RE = re.compile(r"/api/files/([0-9a-f]{32})")
+
+
+def referenced_files(conn: sqlite3.Connection) -> set[tuple[str, str]]:
+    refs: set[tuple[str, str]] = set()
+    sources = (
+        "SELECT owner, title || ' ' || body FROM notes",
+        "SELECT owner, front || ' ' || back FROM cards",
+        "SELECT owner, payload FROM designs",
+    )
+    for sql in sources:
+        for owner, text in conn.execute(sql):
+            refs.update((owner, fid) for fid in FILE_REF_RE.findall(text or ""))
+    return refs
+
+
+def sweep_files(now: datetime | None = None) -> dict[str, int]:
+    now = now or datetime.now(timezone.utc)
+    stamp = now.isoformat(timespec="seconds")
+    cutoff = (now - ORPHAN_GRACE).isoformat(timespec="seconds")
+    counts = {"marked": 0, "revived": 0, "deleted": 0}
+    with db() as conn:
+        refs = referenced_files(conn)
+        for row in conn.execute("SELECT id, owner, orphaned_at FROM files").fetchall():
+            used = (row["owner"], row["id"]) in refs
+            if used and row["orphaned_at"]:
+                conn.execute("UPDATE files SET orphaned_at = NULL WHERE id = ?", (row["id"],))
+                counts["revived"] += 1
+            elif not used and not row["orphaned_at"]:
+                conn.execute("UPDATE files SET orphaned_at = ? WHERE id = ?", (stamp, row["id"]))
+                counts["marked"] += 1
+            elif not used and row["orphaned_at"] < cutoff:
+                (FILES_DIR / row["id"]).unlink(missing_ok=True)
+                conn.execute("DELETE FROM files WHERE id = ?", (row["id"],))
+                counts["deleted"] += 1
+    return counts
+
+
+def sweep_loop() -> None:
+    while True:
+        try:
+            counts = sweep_files()
+            if counts["marked"] or counts["revived"] or counts["deleted"]:
+                print(f"file sweep: {counts}", flush=True)
+        except Exception as exc:  # a failed sweep must never take the API down
+            print(f"file sweep failed: {exc!r}", flush=True)
+        time.sleep(SWEEP_EVERY)
+
+
+@app.on_event("startup")
+def start_sweeper() -> None:
+    threading.Thread(target=sweep_loop, name="file-sweep", daemon=True).start()
 
 
 @app.get("/api/health")
