@@ -201,6 +201,31 @@
       "front": "Undo: Command or Memento?",
       "back": "**Command** stores *operations* with an inverse — small, but each needs a correct `undo()`. **Memento** stores *state snapshots* — always correct, but can be large. Editors often combine them: commands for most edits, snapshots at checkpoints.",
       "tags": ["compare"]
+    },
+    {
+      "front": "Composite vs. Decorator — both hold objects of their own interface. What's the difference?",
+      "back": "How many, and why. A **Composite** holds *many* children and makes a group look like one item (a folder's size is the sum of its files). A **Decorator** holds exactly *one* and adds behaviour around it (a logging stream around a file stream). Same class diagram, different intent.",
+      "tags": ["compare"]
+    },
+    {
+      "front": "Decorator vs. Chain of Responsibility?",
+      "back": "Whether forwarding is guaranteed. A **Decorator** *always* passes the call on, adding work before or after. A **chain** link may *handle the request and stop*, so later links never see it (middleware that rejects an unauthenticated request).",
+      "tags": ["compare"]
+    },
+    {
+      "front": "Strategy as a virtual interface vs. policy-based design (a template parameter)?",
+      "back": "When the choice is made. **Virtual Strategy:** chosen at *run time*, swappable on a live object, one indirect call. **Policy:** chosen at *compile time* (`Cache<LruPolicy>`), fully inlined, but each policy makes a *different type*, so you can't hold a mix in one container or switch later.",
+      "tags": ["compare"]
+    },
+    {
+      "front": "Strategy as a virtual interface vs. type erasure (`std::function` or a hand-rolled wrapper)?",
+      "back": "Both choose at run time; the difference is the coupling. **Virtual Strategy** needs every strategy to *inherit* from your base class and is usually held by pointer. **Type erasure** accepts *any* type with the right call shape (a lambda, a free function, a third-party class) and is held *by value*. The cost: a possible heap allocation and the erasure machinery.",
+      "tags": ["compare"]
+    },
+    {
+      "front": "Iterator vs. ranges?",
+      "back": "A classic **Iterator** separates *walking* from *storage*: one cursor type per container. **Ranges** build on iterators and make them *composable and lazy*: `v | filter(odd) | transform(sq) | take(3)` does no work until you loop, and you write no new iterator class.",
+      "tags": ["compare"]
     }
   ]
 }
