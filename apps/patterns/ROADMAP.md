@@ -114,11 +114,13 @@ were promoted on 2026-10-04.
 
 ## Deferred
 
-- **Run the C++ live.** The sandbox from the algorithms section could compile
-  an edited pattern and stream object-created and call events into the
-  objects view. This is the strongest learning loop, but it needs a second
-  harness and trace header. Do it after batch 4, once the frame fields are
-  stable.
+- **Run the C++ live.** First step shipped 2026-10-04: the "Run your own" tab
+  edits any listing and runs it in the algorithms sandbox
+  (`POST /api/algorithms/program`, `run_program` in `server/cc/runner.py`).
+  The traced listing's stdout is compared line by line with the animation's
+  `printed` metrics. Still open: streaming object-created and call events from
+  the edited program into the objects view, which needs a trace header the
+  listings include.
 - **Quizzes.** Shipped 2026-10-04 as the "Design Patterns in C++" flashcard
   deck (`server/seed/design-patterns.json`): one "which pattern is this?"
   card per pattern, linking back to its walkthrough, plus comparison cards.

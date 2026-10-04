@@ -466,6 +466,86 @@ def run_job(payload: dict) -> dict:
         shutil.rmtree(job, ignore_errors=True)
 
 
+MAX_PROGRAM_STDOUT = 64_000
+PROGRAM_LINE_RE = re.compile(r"^main\.cpp:(\d+):(\d+):", re.MULTILINE)
+
+
+def run_program(payload: dict) -> dict:
+    """
+    A whole translation unit with its own includes and main(), as the pattern
+    listings are. There is no harness and no frame protocol: the result is the
+    program's stdout, which the browser compares with the animation. Same
+    sandbox, limits and lock as run_job.
+    """
+    source = payload.get("source") or ""
+    if not isinstance(source, str) or not source.strip():
+        return {"ok": False, "stage": "request", "message": "there is nothing to compile"}
+    if len(source) > MAX_BODY_CHARS:
+        return {"ok": False, "stage": "request", "message": "the program is too long"}
+
+    JOBS_DIR.mkdir(parents=True, exist_ok=True)
+    job = Path(tempfile.mkdtemp(prefix="job-", dir=JOBS_DIR))
+    timings: dict[str, float] = {}
+
+    try:
+        (job / "main.cpp").write_text(source, encoding="utf-8")
+        (job / "empty.txt").write_bytes(b"")
+
+        t0 = time.monotonic()
+        status, timed_out = spawn(
+            [*COMMON_BWRAP, *USR_BINDS,
+             "--setenv", "PATH", "/usr/bin:/bin",
+             "--setenv", "TMPDIR", "/tmp",
+             "--bind", str(job), "/work",
+             "--chdir", "/work",
+             "--", COMPILER, *CFLAGS, "-Wextra", "-o", "prog", "main.cpp"],
+            cwd=job, timeout=COMPILE_TIMEOUT, cpu=COMPILE_CPU, fsize=COMPILE_FSIZE,
+            addr_space=None, stdin_path=None,
+            stdout_path=job / "cc.out", stderr_path=job / "cc.err",
+        )
+        timings["compile"] = round(time.monotonic() - t0, 3)
+        diagnostics = PROGRAM_LINE_RE.sub(
+            r"line \1:\2:", read_capped(job / "cc.err", MAX_DIAGNOSTICS))
+
+        if status != 0 or not (job / "prog").exists():
+            return {"ok": False, "stage": "compile",
+                    "message": friendly("compile", status, timed_out, diagnostics),
+                    "diagnostics": diagnostics, "timings": timings}
+
+        t0 = time.monotonic()
+        status, timed_out = spawn(
+            [*COMMON_BWRAP,
+             "--ro-bind", str(job / "prog"), "/prog",
+             "--chdir", "/tmp",
+             "--", "/prog"],
+            cwd=job, timeout=RUN_TIMEOUT, cpu=RUN_CPU, fsize=RUN_FSIZE,
+            addr_space=RUN_AS, stdin_path=job / "empty.txt",
+            stdout_path=job / "run.out", stderr_path=job / "run.err",
+        )
+        timings["run"] = round(time.monotonic() - t0, 3)
+
+        result = {
+            "stdout": read_capped(job / "run.out", MAX_PROGRAM_STDOUT),
+            "stderr": read_capped(job / "run.err", MAX_DIAGNOSTICS),
+            "warnings": diagnostics.strip(),
+            "timings": timings,
+        }
+        if status != 0 or timed_out:
+            # bwrap reports a child killed by signal N as exit status 128 + N, and
+            # friendly() reads status 3 as the frame cap, which only harness runs have.
+            if status > 128 and not timed_out:
+                status = -(status - 128)
+            message = (f"the program exited with status {status}" if status > 0 and not timed_out
+                       else friendly("run", status, timed_out, ""))
+            return {"ok": False, "stage": "run", "message": message, **result}
+        return {"ok": True, "stage": "done", **result}
+
+    except Exception as exc:                      # noqa: BLE001 - reported, not swallowed
+        return {"ok": False, "stage": "internal", "message": f"{type(exc).__name__}: {exc}"}
+    finally:
+        shutil.rmtree(job, ignore_errors=True)
+
+
 # --------------------------------------------------------------------------
 # transport
 # --------------------------------------------------------------------------
@@ -519,7 +599,7 @@ class Handler(BaseHTTPRequestHandler):
                              "message": "another run is in progress; try again in a moment"})
             return
         try:
-            self.reply(200, run_job(payload))
+            self.reply(200, run_program(payload) if payload.get("mode") == "program" else run_job(payload))
         finally:
             JOB_LOCK.release()
 

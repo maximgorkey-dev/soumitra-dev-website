@@ -227,6 +227,10 @@ function renderRun(alg) {
   const panel = el("panel-run");
   const spec = alg.editable;
 
+  if (!spec && alg.code.files) {
+    renderProgramRun(alg);
+    return;
+  }
   if (!spec) {
     panel.innerHTML = `<p class="panel-lead">This entry has no server-side runner yet.</p>`;
     return;
@@ -389,6 +393,169 @@ async function runOnServer() {
     } else {
       setRunStatus(data.message || `failed at the ${data.stage} step`, true);
       showRunOutput(data.diagnostics || "");
+    }
+  } catch (err) {
+    setRunStatus(`could not reach the server: ${err.message}`, true);
+  } finally {
+    state.running = false;
+    el("btn-run-go").disabled = false;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* running a whole listing (patterns)                                  */
+/* ------------------------------------------------------------------ */
+
+/** What the animation says the traced listing prints, line by line. */
+function animatedOutput(alg) {
+  return record(alg.run(alg.structure)).flatMap((f) =>
+    (f.metrics || []).filter((m) => m.label === "printed").map((m) => m.value)
+  );
+}
+
+function renderProgramRun(alg) {
+  const files = alg.code.files;
+  const start = Math.max(0, files.findIndex((f) => f.traced));
+  const edits = files.map((f) => f.source);
+  let current = start;
+
+  el("panel-run").innerHTML = `
+    <p class="panel-lead">
+      Edit any listing and run it. It is compiled with <code>g++ -std=c++20 -Wall -Wextra</code> on the
+      server and executed in a sandbox with no network access and hard memory and CPU ceilings.
+      <strong>${esc(files[start].name)}</strong> is the one the animation follows, so its output is
+      checked against what the animation prints.
+    </p>
+
+    <div class="run-files" role="tablist">
+      ${files
+        .map((f, i) => `<button class="run-file${i === start ? " run-file-active" : ""}" type="button" data-file="${i}">${esc(f.name)}</button>`)
+        .join("")}
+    </div>
+
+    <div class="code-block run-editor">
+      <div class="code-head">
+        <span class="code-lang" id="run-file-name">${esc(files[start].name)}</span>
+        <span class="run-hint">Ctrl+Enter runs · Tab indents</span>
+        <button class="code-copy" type="button" id="btn-run-reset">reset</button>
+      </div>
+      <textarea id="run-body" class="run-body run-body-tall" spellcheck="false" autocomplete="off"
+                aria-label="Program source"></textarea>
+    </div>
+
+    <div class="run-actions">
+      <button class="app-btn app-btn-primary app-btn-sm" type="button" id="btn-run-go">Compile and run</button>
+      <span class="run-status" id="run-status"></span>
+    </div>
+
+    <pre class="run-output" id="run-output" hidden></pre>
+    <div id="run-compare"></div>`;
+
+  const editor = el("run-body");
+  editor.value = edits[current];
+
+  el("panel-run").querySelectorAll("[data-file]").forEach((b) =>
+    b.addEventListener("click", () => {
+      edits[current] = editor.value;
+      current = Number(b.dataset.file);
+      editor.value = edits[current];
+      el("run-file-name").textContent = files[current].name;
+      el("panel-run").querySelectorAll("[data-file]").forEach((x) => x.classList.toggle("run-file-active", x === b));
+      setRunStatus("");
+      showRunOutput("");
+      el("run-compare").innerHTML = "";
+    })
+  );
+
+  el("btn-run-reset").addEventListener("click", () => {
+    editor.value = edits[current] = files[current].source;
+    setRunStatus("reset to the original listing");
+  });
+
+  const go = () => runProgram(alg, files[current], editor.value);
+  el("btn-run-go").addEventListener("click", go);
+  editor.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      go();
+      return;
+    }
+    if (e.key === "Tab") {
+      e.preventDefault();
+      const { selectionStart: a, selectionEnd: b, value } = editor;
+      editor.value = `${value.slice(0, a)}    ${value.slice(b)}`;
+      editor.selectionStart = editor.selectionEnd = a + 4;
+    }
+  });
+}
+
+function showComparison(actual, expected) {
+  const rows = Math.max(actual.length, expected.length);
+  const lines = [];
+  for (let i = 0; i < rows; i++) {
+    const a = actual[i] ?? "";
+    const e = expected[i] ?? "";
+    const same = a === e;
+    lines.push(`<tr class="${same ? "" : "run-diff"}"><td>${i + 1}</td><td>${esc(a)}</td><td>${esc(e)}</td></tr>`);
+  }
+  el("run-compare").innerHTML = `
+    <table class="run-compare">
+      <thead><tr><th></th><th>your program printed</th><th>the animation prints</th></tr></thead>
+      <tbody>${lines.join("")}</tbody>
+    </table>`;
+}
+
+async function runProgram(alg, file, source) {
+  if (state.running) return;
+  state.running = true;
+  el("btn-run-go").disabled = true;
+  setRunStatus("compiling…");
+  showRunOutput("");
+  el("run-compare").innerHTML = "";
+
+  try {
+    const response = await fetch("/api/algorithms/program", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source }),
+    });
+    if (response.status === 404) {
+      setRunStatus("server-side runs are not enabled for this account", true);
+      return;
+    }
+    const data = await response.json().catch(() => null);
+    if (!data) {
+      setRunStatus(`the server returned ${response.status} with no explanation`, true);
+      return;
+    }
+    if (data.detail) {
+      setRunStatus(typeof data.detail === "string" ? data.detail : "the request was refused", true);
+      return;
+    }
+
+    const { compile = 0, run = 0 } = data.timings || {};
+    const extra = [data.warnings, data.stderr && `stderr:\n${data.stderr}`].filter(Boolean).join("\n\n");
+
+    if (!data.ok) {
+      setRunStatus(data.message || `failed at the ${data.stage} step`, true);
+      showRunOutput([data.diagnostics, data.stdout, data.stderr].filter(Boolean).join("\n"));
+      return;
+    }
+
+    const actual = data.stdout ? data.stdout.replace(/\n$/, "").split("\n") : [];
+    if (file.traced) {
+      const expected = animatedOutput(alg);
+      const same = actual.length === expected.length && actual.every((l, i) => l === expected[i]);
+      setRunStatus(
+        `${same ? "output matches the animation" : "output differs from the animation"} · compiled in ${compile}s, ran in ${run}s`,
+        !same
+      );
+      showComparison(actual, expected);
+      showRunOutput(extra);
+    } else {
+      setRunStatus(`compiled in ${compile}s, ran in ${run}s`);
+      showRunOutput([data.stdout, extra].filter(Boolean).join("\n"));
     }
   } catch (err) {
     setRunStatus(`could not reach the server: ${err.message}`, true);

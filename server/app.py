@@ -1070,11 +1070,27 @@ def run_algorithm(payload: AlgoRunIn, user: str = User) -> dict[str, Any]:
 
     n, edges, labels = cc_normalise_graph(payload)
     cc_rate_check(user)
+    return cc_post({"topic": payload.topic, "body": payload.body,
+                    "n": n, "edges": edges, "labels": labels})
 
+
+class ProgramRunIn(BaseModel):
+    source: str = Field(max_length=MAX_CC_BODY)
+
+
+@app.post("/api/algorithms/program")
+def run_program(payload: ProgramRunIn, user: str = User) -> dict[str, Any]:
+    """A complete program, such as an edited pattern listing; returns its stdout."""
+    if not payload.source.strip():
+        raise HTTPException(status_code=400, detail="there is nothing to compile")
+    cc_rate_check(user)
+    return cc_post({"mode": "program", "source": payload.source})
+
+
+def cc_post(body: dict[str, Any]) -> dict[str, Any]:
     request = urllib.request.Request(
         CC_URL,
-        data=json.dumps({"topic": payload.topic, "body": payload.body,
-                         "n": n, "edges": edges, "labels": labels}).encode("utf-8"),
+        data=json.dumps(body).encode("utf-8"),
         headers={"Content-Type": "application/json"},
         method="POST",
     )
