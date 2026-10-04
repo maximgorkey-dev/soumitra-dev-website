@@ -19,16 +19,15 @@ sessions (split before starting).
 ## Up next (recommended order)
 
 1. OPS-1 off-site backups — the only item where data can be lost for good.
-2. U-1 sign-in check of the new topics — two minutes, needs you.
-3. OPS-3 line endings and a local git clone — removes friction from every later item.
-4. ALG-6 validator rules — cheap, protects all the content waves after it.
-5. ALG-10 interview-ordered content plan — sets the order for every wave below.
-6. ALG-2a grid DP wave, then ALG-2b grid search — straight on the new grid view.
-7. ALG-4 tree renderer — the largest single gain for interview coverage.
-8. ALG-11 state machines on the graph view — no new renderer, a whole DP family.
-9. ALG-12 practice mode — trains the skill interviews actually grade.
-10. PAT-1b live listings for more patterns — cheap now that the machinery exists.
-11. ALG-13 thread timeline — the concurrency questions L6 interviews use.
+2. OPS-3 line endings and a local git clone — removes friction from every later item.
+3. ALG-6 validator rules — cheap, protects all the content waves after it.
+4. ALG-10 interview-ordered content plan — sets the order for every wave below.
+5. ALG-2a grid DP wave, then ALG-2b grid search — straight on the new grid view.
+6. ALG-4 tree renderer — the largest single gain for interview coverage.
+7. ALG-11 state machines on the graph view — no new renderer, a whole DP family.
+8. ALG-12 practice mode — trains the skill interviews actually grade.
+9. PAT-1b live listings for more patterns — cheap now that the machinery exists.
+10. ALG-13 thread timeline — the concurrency questions L6 interviews use.
 
 After that, pick by mood: more content (ALG, PAT), new views (ALG-5, ALG-14),
 EDA depth (EDA), or notes polish (NOTES).
@@ -37,16 +36,8 @@ EDA depth (EDA), or notes polish (NOTES).
 
 ## Needs you
 
-- [ ] **U-1 — Click through the new private topics (S).** The agent's browser
-  can't sign in. Open `/apps/patterns/` (lands on the new pattern map: click
-  a box, then Back; also Iterator, Memento, Proxy, Flyweight, Template
-  Method, Adapter, Bridge, Builder, Singleton) and `/apps/algorithms/`
-  (Dynamic programming → Longest common subsequence; Grid search → Shortest
-  path in a maze). Strategy → Run tab → live.cpp → Compile and run: the
-  player should switch to your run. Flashcards: the patterns deck should show 5 new
-  comparison cards. Done when each plays end to end and nothing overlaps
-  badly; report any frame that looks wrong. Every patterns frame has been
-  checked on the public preview; only the signed-in pages are unchecked.
+Nothing right now. The agent can check private pages once you are signed in
+to soumitra.dev in the Cursor browser tab.
 
 ---
 
@@ -381,6 +372,8 @@ roughly by how much a reviewer would notice:
 ---
 
 ## Done log
+
+- 2026-10-04 — U-1: signed-in check of the map links and Back, 12 pattern topics, LCS, maze BFS, a live Strategy run, and the 45-card deck; all pass.
 
 - 2026-10-04 — Patterns: your own edited program animates (PAT-1): `pattrace.hpp`, browser converter, live.cpp for Strategy and Observer.
 - 2026-10-04 — Patterns: Template Method, Adapter, Bridge, Builder, Singleton animated (PAT-2 first wave, `666fc18`).
