@@ -1,10 +1,14 @@
 # Design patterns in C++ — build roadmap
 
-Status (2026-10-04): batches 0–5 shipped, plus promotions — 22 animated
-patterns, 10 one-page notes (built with `note()` in `pat-common.js`; files
-`pat-creational.js`, `pat-structural.js`, `pat-modern-notes.js`), and a
-clickable pattern map (`pat-map.js`, the section's landing page) relating
-them. See Deferred for what's left.
+Status (2026-10-04): batches 0–5 shipped and every note promoted — all 32
+patterns have before/after/run frames, plus a clickable pattern map
+(`pat-map.js`, the section's landing page). The last ten (Factory Method,
+Abstract Factory, Prototype, Facade, PIMPL, NVI, Rule of zero, Policy-based
+design, Ranges, Concepts) are thin `pat-<name>.js` files: `promote()` in
+`pat-common.js` takes the `note()` content kept in `pat-creational.js`,
+`pat-structural.js` and `pat-modern-notes.js`, adds a before.cpp, a "The
+smell" list and the Before/After frames, and replays the note's steps as the
+Run. See Deferred for what's left.
 
 - Frame fields for both views, and the explanation block format, are
   documented in `apps/algorithms/topics/pat-common.js`.

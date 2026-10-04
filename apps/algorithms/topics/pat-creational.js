@@ -1,6 +1,7 @@
 /**
- * Creational patterns, one page each: Factory Method, Abstract Factory,
- * Prototype. Builder and Singleton have their own before/after topics.
+ * Content for Factory Method, Abstract Factory and Prototype: diagram, run
+ * steps, explanation, analysis and traced listing. The catalogued topics are
+ * built from these by promote() in pat-<name>.js, which adds the before/after.
  */
 
 import { note } from "./pat-common.js";

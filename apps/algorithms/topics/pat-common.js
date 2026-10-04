@@ -64,5 +64,44 @@ export function note({ id, topic, title, blurb, scene, steps, explanation, analy
       });
     }
   }
-  return { id, section: "Design patterns", topic, title, blurb, structure: OBJECTS, run, explanation, analysis, code };
+  return { id, section: "Design patterns", topic, title, blurb, structure: OBJECTS, run, explanation, analysis, code, scene };
+}
+
+/** Shorthand for one objects-view box. */
+export const box = (id, label, role, x, y, lines = [], state = undefined) => ({ id, label, role, x, y, lines, state });
+
+/** A note's diagram with some boxes' states or lines overridden. */
+export const sceneWith = (n, states = {}, lines = {}) => ({
+  objects: n.scene.objects.map((o) => ({ ...o, state: states[o.id] || o.state, lines: lines[o.id] || o.lines })),
+  links: n.scene.links,
+  msg: null,
+});
+
+/**
+ * Turn a note into a before/after topic. `frames` are the Before and After
+ * frames ({ phase, note, detail?, marks, metrics? }); the note's own steps
+ * follow as the Run, so their printed lines still match its traced listing.
+ * `smell` becomes a "The smell" list after the explanation's opening tip, and
+ * `before` ({ source, note }) is listed first as before.cpp.
+ */
+export function promote(n, { frames, smell, before, extra = [] }) {
+  function* run() {
+    for (const f of frames) yield frame(f);
+    for (const f of n.run()) yield { ...f, phase: f.phase === "How it works" ? "Run" : f.phase };
+  }
+  const [tip, ...rest] = n.explanation;
+  const traced = n.code.files.find((f) => f.traced);
+  return {
+    ...n,
+    run,
+    explanation: [tip, { h: "The smell" }, { list: smell }, ...rest],
+    code: {
+      lang: "cpp",
+      files: [
+        { name: "before.cpp", note: before.note, source: before.source },
+        { ...traced, note: "The pattern, which the animation follows." },
+        ...extra,
+      ],
+    },
+  };
 }

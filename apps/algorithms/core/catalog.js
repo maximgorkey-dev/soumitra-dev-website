@@ -50,10 +50,12 @@ import { raii } from "../topics/pat-raii.js";
 import { crtp } from "../topics/pat-crtp.js";
 import { typeErasure } from "../topics/pat-type-erasure.js";
 import { variant } from "../topics/pat-variant.js";
-import { factoryMethod, abstractFactory, prototype } from "../topics/pat-creational.js";
+import { factoryMethod } from "../topics/pat-factory-method.js";
+import { abstractFactory } from "../topics/pat-abstract-factory.js";
+import { prototype } from "../topics/pat-prototype.js";
 import { builder } from "../topics/pat-builder.js";
 import { singleton } from "../topics/pat-singleton.js";
-import { facade } from "../topics/pat-structural.js";
+import { facade } from "../topics/pat-facade.js";
 import { adapter } from "../topics/pat-adapter.js";
 import { bridge } from "../topics/pat-bridge.js";
 import { templateMethod } from "../topics/pat-template-method.js";
@@ -64,7 +66,12 @@ import { flyweight } from "../topics/pat-flyweight.js";
 import { patternMap } from "../topics/pat-map.js";
 import { chain } from "../topics/pat-chain.js";
 import { mediator } from "../topics/pat-mediator.js";
-import { pimpl, nvi, ruleOfZero, policy, ranges, concepts } from "../topics/pat-modern-notes.js";
+import { pimpl } from "../topics/pat-pimpl.js";
+import { nvi } from "../topics/pat-nvi.js";
+import { ruleOfZero } from "../topics/pat-rule-of-zero.js";
+import { policy } from "../topics/pat-policy.js";
+import { ranges } from "../topics/pat-ranges.js";
+import { concepts } from "../topics/pat-concepts.js";
 
 export const ALGORITHMS = [
   bfs, dfs,

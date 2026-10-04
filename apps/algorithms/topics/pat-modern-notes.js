@@ -1,6 +1,7 @@
 /**
- * More modern C++ idioms, one page each: PIMPL, NVI, Rule of zero,
- * Policy-based design, Ranges pipelines, Concepts.
+ * Content for PIMPL, NVI, Rule of zero, Policy-based design, Ranges pipelines
+ * and Concepts: diagram, run steps, explanation, analysis and traced listing.
+ * The catalogued topics are built from these by promote() in pat-<name>.js.
  */
 
 import { note } from "./pat-common.js";

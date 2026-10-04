@@ -293,11 +293,6 @@ Detail: `apps/patterns/ROADMAP.md`.
   put `TRACE_CALL` before each call worth seeing. The self-test checks that
   it prints the same as the traced listing.
 
-- [ ] **PAT-2 — Promote more notes (S–M each).** 10 patterns are still one
-  page each. Next candidates: Factory Method, Facade, Prototype, Abstract
-  Factory, then the Modern C++ notes (PIMPL, NVI) if the memory view suits
-  them. Copy the shape of `topics/pat-proxy.js`.
-
 ---
 
 ## EDA demo (`/eda/`, public)
@@ -372,6 +367,8 @@ roughly by how much a reviewer would notice:
 ---
 
 ## Done log
+
+- 2026-10-04 — Patterns: PAT-2 complete. The last 10 notes got before/after frames via `promote()`; all 32 patterns are animated.
 
 - 2026-10-04 — U-1: signed-in check of the map links and Back, 12 pattern topics, LCS, maze BFS, a live Strategy run, and the 45-card deck; all pass.
 

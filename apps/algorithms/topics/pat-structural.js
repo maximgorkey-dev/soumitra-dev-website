@@ -1,6 +1,6 @@
 /**
- * Structural patterns, one page each: Facade. Adapter and Bridge have their
- * own before/after topics.
+ * Content for Facade: diagram, run steps, explanation, analysis and traced
+ * listing. The catalogued topic is built from it by promote() in pat-facade.js.
  */
 
 import { note } from "./pat-common.js";
