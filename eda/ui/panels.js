@@ -146,9 +146,11 @@ export const EXPLAINERS = {
     anchor: "cts",
     metric:
       "Skew is the spread between the earliest and latest clock arrival at any flop; insertion delay is the " +
-      "range itself. This demo splits the flops recursively at the median (means and medians), puts a buffer " +
-      "at each split, and times the tree with Elmore delay. Buffers sit at their ideal positions rather than " +
-      "being legalised into rows.",
+      "range itself. This demo splits the flops recursively at the median (means and medians), inserts a real " +
+      "buffer cell at each split on the nearest free legal site, and times the tree with Elmore delay from the " +
+      "buffers' actual pins. It then balances the tree: a buffer whose subtree is early gets a serpentine of " +
+      "extra wire on its output (drawn in yellow), whose capacitance slows exactly that subtree. The focus " +
+      "strip shows skew before and after.",
     goal: "Build the clock network so every flop is clocked at nearly the same instant.",
     what:
       "The clock reaches thousands of flip-flops, and until now it has been one net with an impossible fanout. " +
@@ -168,6 +170,33 @@ export const EXPLAINERS = {
       "which is why the placement it is handed has to have room to spare.",
     fails:
       "Chasing zero skew regardless of cost, and paying for it in buffer count and clock power.",
+  },
+  holdfix: {
+    title: "Hold fixing",
+    anchor: "holdfix",
+    metric:
+      "Worst hold slack before and after, and how many cells it took. Inserted delay cells are drawn in pink, " +
+      "each just in front of the flop input it protects. In the registered adder the failures are the input " +
+      "paths: the clock reaches every flop about 220 ps late through the tree, while input data is timed from " +
+      "the ideal clock at the port.",
+    goal: "Make every too-fast path slow enough to meet hold, without breaking setup.",
+    what:
+      "Hold fails when new data reaches a flop before the clock edge that should capture the old data has " +
+      "finished doing so. The fix is the opposite of every other timing fix: add delay. A delay cell is " +
+      "spliced into the wire right in front of the failing input, so that one endpoint slows down and nothing " +
+      "else does.",
+    optimises:
+      "The fewest, smallest cells that bring every hold check above a small guard band, so routing cannot " +
+      "push it back under.",
+    constrained:
+      "Setup slack. Every picosecond added for hold is taken from the same path's setup budget, so a cell is " +
+      "only inserted where setup can absorb it, and free sites near the flop.",
+    why:
+      "Hold violations do not get better with a slower clock. A setup failure means the chip runs slower than " +
+      "planned; a hold failure means it does not work at any frequency, so it has to be fixed before tape-out.",
+    fails:
+      "Paths that are short for hold and long for setup at once, usually because of large skew. Inserting " +
+      "delay there trades one violation for the other, and the real fix is in the clock tree.",
   },
   groute: {
     title: "Global routing",
@@ -197,7 +226,12 @@ export const EXPLAINERS = {
   droute: {
     title: "Detail routing",
     anchor: "droute",
-    planned: true,
+    metric:
+      "Wires are drawn per layer (legend bottom right): M3 and M5 run horizontally, M4 and M6 vertically, M2 " +
+      "carries the short jogs into pins, and the white squares are vias. This demo assigns each straight run " +
+      "of a global route to a track with the left-edge algorithm, checks the finished geometry for wires of " +
+      "different nets too close on one track, and moves offenders until none remain. Then it extracts an RC " +
+      "tree per net, which is what timing signs off on. Click a cell to light up its nets.",
     goal: "Commit every net to real wires on real tracks, with no design-rule violations.",
     what:
       "Turns the global route's plan into actual metal: specific tracks, specific segments, specific vias, for " +
@@ -222,8 +256,8 @@ export const EXPLAINERS = {
     metric:
       "Worst negative slack (WNS) is the single worst endpoint; total negative slack (TNS) sums every failing " +
       "one. Red cells have negative slack, amber are within 15% of the period, and the red line is the " +
-      "critical path. Its full report is in the log. Wire delay uses global-route lengths, not extracted " +
-      "parasitics, so treat it as a pre-signoff estimate.",
+      "critical path. Its full report is in the log. Wire delay comes from the parasitics extracted after " +
+      "detail routing: the Elmore delay to each sink through its net's own RC tree. One corner, no crosstalk.",
     goal: "Prove every path meets timing in every condition, without simulating anything.",
     what:
       "Computes the arrival time of every signal at every pin and compares it against when it was required, " +
@@ -246,8 +280,8 @@ export const EXPLAINERS = {
 };
 
 export const PLANNED_NOTE =
-  "The flow runs from netlist to timing. Detail routing is the one stage explained but not performed: timing " +
-  "here uses global-route wire lengths in place of extracted parasitics. Every chip in the bar above explains " +
+  "The flow runs from netlist to signoff timing on extracted parasitics, including clock tree balancing, hold " +
+  "fixing and detail routing. Every chip in the bar above explains " +
   "itself, including the algorithm it runs as C++, and there is a longer primer at /eda/guide/.";
 
 /* ------------------------------------------------------------------ */

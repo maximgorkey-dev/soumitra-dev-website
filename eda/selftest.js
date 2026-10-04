@@ -336,6 +336,20 @@ export async function runRunnerTests() {
     check(errs.length === 0, `${p.id}: no stage errors`, errs.map((e) => e.message).join("; "));
     check(STAGES.every((s) => done.includes(s.id)), `${p.id}: every stage completed`, done.join(","));
 
+    // Clock buffers and hold cells are added after legalisation, by ECO; the
+    // placement has to still be legal once they are in.
+    const legal = runner.legality();
+    check(legal && legal.ok, `${p.id}: placement still legal after inserted cells`,
+      legal ? `overlaps=${legal.overlaps.length} offGrid=${legal.offGrid.length}` : "no floorplan");
+    const metricsOf = (id) => (msgs.find((m) => m.t === "stage" && m.status === "done" && m.id === id) || {}).metrics || {};
+    const cts = metricsOf("cts"), dr = metricsOf("droute"), sta = metricsOf("sta");
+    if (cts.buffers) check(cts.skew <= Math.max(1, cts.skewBefore), `${p.id}: balancing does not worsen skew`, `${cts.skewBefore} -> ${cts.skew}`);
+    check(dr.shorts === 0, `${p.id}: detail routing leaves no shorts`, `${dr.shorts}`);
+    check(sta.extracted === true, `${p.id}: signoff timing uses extracted parasitics`);
+    check(!sta.holdViolations, `${p.id}: no hold violations at signoff`, `${sta.holdViolations}`);
+    const wires = msgs.find((m) => m.t === "wires" && m.geometry);
+    check(Boolean(wires && wires.geometry.segs.length), `${p.id}: detail routing produced wires`);
+
     // The UI reads the overflow target off the frame to caption its live
     // gauge, so a frame without one silently blanks the caption.
     const frames = msgs.filter((m) => m.t === "frame" && m.stage === "place" && m.metrics.hpwl != null);

@@ -172,28 +172,38 @@ export function* globalRoute(design) {
 
   /* -------- decompose every signal net into two-pin connections -------- */
 
+  // Prim's MST over the net's pins. Connections whose two pins share a tile
+  // never cross a tile boundary, so global routing has nothing to decide for
+  // them; they are kept as `local` for the detail router.
   const conns = [];
+  const local = [];
   const localWire = new Float64Array(design.nets.length);
   for (const net of design.nets) {
     if (net.isClock || net.terminals.length < 2) continue;
-    const tiles = [...new Set(net.terminals.map((t) => tileOf(terminalPos(design, t))))];
+    const pts = net.terminals.map((t) => terminalPos(design, t));
     const box = netBBox(design, net);
     localWire[net.index] = box ? box.maxX - box.minX + (box.maxY - box.minY) : 0;
-    if (tiles.length < 2) continue;
 
-    // Prim's MST over the tiles the net touches.
-    const inTree = [tiles[0]];
-    const rest = tiles.slice(1);
+    const inTree = [0];
+    const rest = pts.map((_, i) => i).slice(1);
     while (rest.length) {
       let best = Infinity, bi = 0, bj = 0;
       for (let i = 0; i < inTree.length; i++) {
         for (let j = 0; j < rest.length; j++) {
-          const d = Math.abs((inTree[i] % nx) - (rest[j] % nx)) + Math.abs(((inTree[i] / nx) | 0) - ((rest[j] / nx) | 0));
+          const p = pts[inTree[i]], q = pts[rest[j]];
+          const d = Math.abs(p.x - q.x) + Math.abs(p.y - q.y);
           if (d < best) { best = d; bi = i; bj = j; }
         }
       }
-      conns.push({ net: net.index, a: inTree[bi], b: rest[bj], path: null });
-      inTree.push(rest[bj]);
+      const ta = inTree[bi], tb = rest[bj];
+      const c = { net: net.index, ta, tb, a: tileOf(pts[ta]), b: tileOf(pts[tb]), path: null };
+      if (c.a === c.b) {
+        c.path = [c.a];
+        local.push(c);
+      } else {
+        conns.push(c);
+      }
+      inTree.push(tb);
       rest.splice(bj, 1);
     }
   }
@@ -289,5 +299,11 @@ export function* globalRoute(design) {
   if (m.overflow > 0) {
     logs.push("Overflow remains: raise the routing supply, lower utilisation, or widen the core.");
   }
-  return { netWire, metrics: { ...m, iterations: iter, rerouted, initialOverflow, nx, ny }, logs };
+  return {
+    netWire,
+    // Handed on to detail routing: every pin-to-pin connection and its tiles.
+    guides: { grid, connections: [...conns, ...local].map(({ net, ta, tb, path }) => ({ net, ta, tb, path })) },
+    metrics: { ...m, iterations: iter, rerouted, initialOverflow, nx, ny, local: local.length },
+    logs,
+  };
 }

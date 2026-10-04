@@ -171,7 +171,18 @@ function handle(msg) {
       view.setTiming({ slack: msg.slack, pathPts: msg.pathPts, period: msg.period });
       break;
 
+    case "eco":
+      view.updateDesign(msg.design);
+      break;
+
+    case "wires":
+      if (msg.geometry) view.setWires(msg.geometry);
+      view.setWiresUpto(msg.upto);
+      stageBar.setMetric("droute", `${fmt.int(msg.metrics.vias)} vias · ${fmt.int(msg.metrics.shorts)} shorts`);
+      break;
+
     case "progress":
+      if (msg.text) stageBar.setMetric(msg.stage, msg.text);
       if (msg.stage === "legalize") {
         stageBar.setMetric("legalize", `${msg.placed} / ${msg.total} cells`);
         focus.setGauges([
@@ -308,9 +319,22 @@ function finalGauges(id, m) {
       ];
     case "cts":
       return [
-        { role: "objective", label: "Skew", value: fmt.ps(m.skew) },
+        { role: "objective", label: "Skew", value: fmt.ps(m.skew), note: m.skewBefore != null ? `from ${fmt.ps(m.skewBefore)} before balancing` : "" },
         { role: "info", label: "Insertion delay", value: `${fmt.ps(m.minLatency)} – ${fmt.ps(m.maxLatency)}` },
-        { role: "info", label: "Buffers", value: fmt.int(m.buffers) },
+        { role: "info", label: "Buffers", value: fmt.int(m.buffers), note: m.snaked ? `${m.snaked} snaked` : "" },
+      ];
+    case "holdfix":
+      if (m.whsBefore == null) return [{ role: "info", label: "Hold checks", value: "none" }];
+      return [
+        { role: "objective", label: "Worst hold slack", value: fmt.ps(m.whs), note: `from ${fmt.ps(m.whsBefore)}` },
+        { role: "constraint", label: "Worst setup slack", value: fmt.ps(m.wns), note: `from ${fmt.ps(m.wnsBefore)}` },
+        { role: "info", label: "Cells inserted", value: fmt.int(m.inserted), note: m.unfixed ? `${m.unfixed} unfixed` : "" },
+      ];
+    case "droute":
+      return [
+        { role: "objective", label: "Wirelength", value: fmt.um(m.wirelength, 1) },
+        { role: "constraint", label: "Shorts", value: fmt.int(m.shorts), note: `from ${fmt.int(m.initialShorts)} before repair` },
+        { role: "info", label: "Vias", value: fmt.int(m.vias) },
       ];
     case "groute":
       return [
@@ -320,9 +344,9 @@ function finalGauges(id, m) {
       ];
     case "sta":
       return [
-        { role: "objective", label: "Worst slack", value: fmt.ps(m.wns) },
-        { role: "constraint", label: "Failing endpoints", value: `${fmt.int(m.violations)} / ${fmt.int(m.endpoints)}` },
-        { role: "info", label: "Fmax", value: m.fmax ? `${m.fmax.toFixed(0)} MHz` : "—" },
+        { role: "objective", label: "Worst setup slack", value: fmt.ps(m.wns), note: `${fmt.int(m.violations)} / ${fmt.int(m.endpoints)} failing` },
+        { role: "constraint", label: "Worst hold slack", value: m.whs == null ? "—" : fmt.ps(m.whs), note: m.whs == null ? "no flops" : `${fmt.int(m.holdViolations)} failing` },
+        { role: "info", label: "Fmax", value: m.fmax ? `${m.fmax.toFixed(0)} MHz` : "—", note: m.extracted ? "extracted RC" : "" },
       ];
     default:
       return [];
@@ -341,6 +365,10 @@ function headline(id, m) {
       return `${fmt.um(m.hpwl, 1)} · ${fmt.signedPct(m.hpwlDelta)}`;
     case "cts":
       return m.buffers ? `${fmt.int(m.buffers)} bufs · skew ${fmt.ps(m.skew)}` : "no clock";
+    case "holdfix":
+      return m.whsBefore == null ? "no flops" : `${fmt.int(m.inserted)} cells · hold ${fmt.ps(m.whs)}`;
+    case "droute":
+      return `${fmt.um(m.wirelength, 1)} · ${fmt.int(m.shorts)} shorts`;
     case "groute":
       return `${fmt.um(m.wirelength, 1)} · ovf ${fmt.int(m.overflow)}`;
     case "sta":
@@ -419,16 +447,27 @@ function renderMetrics() {
     if (l.unplaced) rows.push({ label: "Unplaced cells", value: fmt.int(l.unplaced), tone: "bad" });
   }
 
-  const { cts: c, groute: g, sta: t } = state.stageMetrics;
+  const { cts: c, holdfix: h, groute: g, droute: d, sta: t } = state.stageMetrics;
   if (c && c.buffers) {
     rows.push(
       "---",
       { label: "Clock sinks", value: fmt.int(c.sinks) },
       { label: "Clock buffers", value: `${fmt.int(c.buffers)} in ${c.levels} levels` },
+      { label: "Buffer legalisation", value: `${fmt.um(c.bufferMoved)} avg move` },
       { label: "Insertion delay", value: `${fmt.ps(c.minLatency)} – ${fmt.ps(c.maxLatency)}` },
+      { label: "Skew before balancing", value: fmt.ps(c.skewBefore) },
       { label: "Clock skew", value: fmt.ps(c.skew), tone: "accent" },
-      { label: "Clock wire", value: fmt.um(c.wirelength, 1) }
+      { label: "Clock wire", value: `${fmt.um(c.wirelength, 1)} + ${fmt.um(c.snakeLength, 1)} snakes` }
     );
+  }
+  if (h && h.whsBefore != null) {
+    rows.push(
+      "---",
+      { label: "Hold slack before fix", value: fmt.ps(h.whsBefore), tone: h.whsBefore < 0 ? "bad" : undefined },
+      { label: "Hold cells inserted", value: `${fmt.int(h.inserted)} (${fmt.int(h.delayCells)} DLY)` },
+      { label: "Hold slack after fix", value: fmt.ps(h.whs), tone: h.whs < 0 ? "bad" : "good" }
+    );
+    if (h.unfixed) rows.push({ label: "Unfixed hold endpoints", value: fmt.int(h.unfixed), tone: "bad" });
   }
   if (g) {
     rows.push(
@@ -439,6 +478,16 @@ function renderMetrics() {
       { label: "Peak edge use", value: fmt.pct(g.maxUtil, 0), tone: g.maxUtil > 1 ? "bad" : g.maxUtil > 0.85 ? "warn" : "good" },
       { label: "Overflow", value: `${fmt.int(g.overflow)} (was ${fmt.int(g.initialOverflow)})`, tone: g.overflow ? "bad" : "good" },
       { label: "Negotiation rounds", value: fmt.int(g.iterations) }
+    );
+  }
+  if (d) {
+    rows.push(
+      "---",
+      { label: "Detail wirelength", value: fmt.um(d.wirelength, 1), tone: "accent" },
+      { label: "Via cuts", value: fmt.int(d.vias) },
+      { label: "Tracks used", value: fmt.pct(d.trackUse, 0) },
+      { label: "Shorts", value: `${fmt.int(d.shorts)} (was ${fmt.int(d.initialShorts)})`, tone: d.shorts ? "bad" : "good" },
+      { label: "Wire cap extracted", value: `${d.extractedCap.toFixed(1)} fF (est. ${d.estimatedCap.toFixed(1)})` }
     );
   }
   if (t) {

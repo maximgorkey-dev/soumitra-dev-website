@@ -13,19 +13,20 @@ work in it is still valid.
 
 ## EDA demo (`/eda/`)
 
-- **Hold fixing.** The default registered adder shows about -21 ps hold slack
-  because clock skew exceeds the shortest path's margin. Real flows insert
-  delay buffers; nothing here does. The primer now explains this; a hold-fix
-  step after timing is still not built.
-- **Clock buffers are not legalised** into rows; they are timed at their ideal
-  positions.
-- **Skew balancing** (zero-skew merging, wire snaking) is not done.
-- **Detail routing** is explained only, and timing uses global-route lengths
-  rather than extracted parasitics.
-- **Routing overlay readability** was not checked zoomed in after moving the
-  layer above the cells.
-- **Per-net route geometry** is not drawn; the overlay shows demand per tile
-  boundary instead.
+Shipped 2026-10-04: legalised clock buffers, snake-based skew balancing, hold
+fixing with delay cells, detail routing (track assignment, repair, RC
+extraction) and per-layer wire drawing. What is still simplified:
+
+- **The detail router assigns tracks inside the global guides**; it has no
+  maze search over the track grid and checks spacing only as one pitch.
+- **Pin access ignores M1**: wires drop straight onto pins through the cells'
+  own metal.
+- **The clock is not detail-routed**; its tree and snakes are drawn from CTS.
+- **Skew balancing fixes delays after the fact** rather than choosing merge
+  points by zero-skew merging (DME).
+- **One corner, no crosstalk**, in timing.
+- **At high utilisation hold fixing can run out of sites** and reports the
+  endpoints it could not fix.
 
 ## Notes attachments (phase 2, shipped 2026-10-03)
 

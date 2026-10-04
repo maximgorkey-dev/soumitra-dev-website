@@ -21,6 +21,17 @@ const CELL_COLORS = {
   seq: { fill: "#5a3410", edge: "#f0883e" },
 };
 
+/** Cells a tool inserted, coloured by why. */
+const ROLE_COLORS = {
+  clock: { fill: "#0d5a52", edge: "#5eead4" },
+  hold: { fill: "#5a1f4a", edge: "#f778ba" },
+};
+
+/** One colour per metal layer, M1 upward. */
+const LAYER_COLORS = ["#8b949e", "#f778ba", "#3fb950", "#d29922", "#58a6ff", "#a371f7"];
+const LAYER_NAMES = ["M1", "M2", "M3", "M4", "M5", "M6"];
+const LAYER_PITCH = [200, 200, 240, 240, 400, 400];
+
 const PALETTE = {
   outside: "#0a0d12",
   dieFill: "#0f141b",
@@ -50,6 +61,7 @@ export function createView(canvas, { onHover } = {}) {
   let target = 0.7;
   let clock = null; // { segs: [x1,y1,x2,y2,level, ...], bufs, upto }
   let route = null; // { grid, usage, congestion }
+  let wires = null; // { segs: [net, layer, x1, y1, x2, y2, ...], vias: [net, x, y, cuts, ...], upto }
   let timing = null; // { slack, pathPts, period }
 
   let width = 1;
@@ -132,11 +144,82 @@ export function createView(canvas, { onHover } = {}) {
     if (show.flylines) drawFlylines();
     drawCells();
     // Above the cells: they are opaque, and routing runs over them on metal.
-    if (show.routes && route) drawRoutes();
+    // Once detail routing has run, the wires replace the demand picture.
+    if (show.routes && wires) drawWires();
+    else if (show.routes && route) drawRoutes();
     if (show.timing && timing) drawTiming();
     if (show.clock && clock) drawClock();
     drawPorts();
     drawOverlay();
+    if (show.routes && wires) drawLayerLegend();
+  }
+
+  /** Nets with a pin on the selected cell, for highlighting its wires. */
+  function selectedNets() {
+    if (selected == null) return null;
+    const set = new Set();
+    for (const net of design.nets) {
+      if (net.terminals.some((t) => !t.port && t.index === selected)) set.add(net.index);
+    }
+    return set;
+  }
+
+  /**
+   * Real wires from detail routing, lower layers first so the picture stacks
+   * the way the metal does. Widths follow the layer's pitch on screen, so
+   * zooming in shows wires as wires rather than hairlines; vias appear once
+   * they are big enough to see.
+   */
+  function drawWires() {
+    const { segs, vias, upto } = wires;
+    const hot = selectedNets();
+    const byLayer = LAYER_COLORS.map(() => new Path2D());
+    const hotPath = new Path2D();
+    for (let i = 0; i < segs.length; i += 6) {
+      const net = segs[i];
+      if (net > upto) continue;
+      const p = hot && hot.has(net) ? hotPath : byLayer[segs[i + 1]];
+      p.moveTo(sx(segs[i + 2]), sy(segs[i + 3]));
+      p.lineTo(sx(segs[i + 4]), sy(segs[i + 5]));
+    }
+    ctx.lineCap = "square";
+    ctx.globalAlpha = hot ? 0.25 : 0.75;
+    byLayer.forEach((path, layer) => {
+      ctx.strokeStyle = LAYER_COLORS[layer];
+      ctx.lineWidth = Math.min(5, Math.max(1, LAYER_PITCH[layer] * 0.3 * cam.scale));
+      ctx.stroke(path);
+    });
+    ctx.globalAlpha = 1;
+    if (hot) {
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = Math.min(5, Math.max(1.6, 100 * cam.scale));
+      ctx.stroke(hotPath);
+    }
+
+    const s = Math.min(5, 120 * cam.scale);
+    if (s >= 2) {
+      ctx.fillStyle = "rgba(230,237,243,0.85)";
+      for (let i = 0; i < vias.length; i += 4) {
+        if (vias[i] > upto) continue;
+        ctx.fillRect(sx(vias[i + 1]) - s / 2, sy(vias[i + 2]) - s / 2, s, s);
+      }
+    }
+    ctx.lineCap = "butt";
+  }
+
+  function drawLayerLegend() {
+    ctx.font = "10px ui-monospace, monospace";
+    let x = width - 14;
+    ctx.textAlign = "right";
+    for (let layer = LAYER_NAMES.length - 1; layer >= 1; layer--) {
+      ctx.fillStyle = PALETTE.textDim;
+      ctx.fillText(LAYER_NAMES[layer], x, height - 12);
+      x -= ctx.measureText(LAYER_NAMES[layer]).width + 4;
+      ctx.fillStyle = LAYER_COLORS[layer];
+      ctx.fillRect(x - 10, height - 19, 10, 6);
+      x -= 20;
+    }
+    ctx.textAlign = "left";
   }
 
   /* ---------------- back-end overlays ---------------- */
@@ -191,16 +274,24 @@ export function createView(canvas, { onHover } = {}) {
   }
 
   function drawClock() {
-    const { segs, bufs, upto } = clock;
-    ctx.strokeStyle = "rgba(45,212,191,0.9)";
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    for (let i = 0; i < segs.length; i += 5) {
-      if (segs[i + 4] > upto) continue;
-      ctx.moveTo(sx(segs[i]), sy(segs[i + 1]));
-      ctx.lineTo(sx(segs[i + 2]), sy(segs[i + 3]));
-    }
-    ctx.stroke();
+    const { segs, bufs, upto, snakes = [] } = clock;
+    const path = (list, colour, w) => {
+      ctx.strokeStyle = colour;
+      ctx.lineWidth = w;
+      ctx.beginPath();
+      for (let i = 0; i < list.length; i += 5) {
+        if (list[i + 4] > upto) continue;
+        ctx.moveTo(sx(list[i]), sy(list[i + 1]));
+        ctx.lineTo(sx(list[i + 2]), sy(list[i + 3]));
+      }
+      ctx.stroke();
+    };
+    path(segs, "rgba(45,212,191,0.9)", 1.5);
+    // Balancing snakes: wire laid only for its capacitance.
+    path(snakes, "#fef08a", Math.max(1, Math.min(3, 120 * cam.scale)));
+    // Buffers are real cells once inserted; the markers only help when the
+    // cells are too small on screen to pick out.
+    if (cam.scale * 1600 >= 18) return;
     for (const b of bufs) {
       if (b.level > upto) continue;
       const r = b.big ? 5 : 3.5;
@@ -387,7 +478,7 @@ export function createView(canvas, { onHover } = {}) {
       const y = sy(c.y + c.height);
       const w = Math.max(1, c.width * cam.scale);
       const h = Math.max(1, c.height * cam.scale);
-      const col = CELL_COLORS[c.kind] || CELL_COLORS.comb;
+      const col = ROLE_COLORS[c.role] || CELL_COLORS[c.kind] || CELL_COLORS.comb;
 
       ctx.fillStyle = col.fill;
       ctx.fillRect(x, y, w, h);
@@ -592,8 +683,26 @@ export function createView(canvas, { onHover } = {}) {
       density = null;
       clock = null;
       route = null;
+      wires = null;
       timing = null;
       buildPinCache();
+      schedule();
+    },
+
+    /** Same design, with cells and nets a stage added after placement. */
+    updateDesign(next) {
+      design = next;
+      buildPinCache();
+      schedule();
+    },
+
+    setWires(geometry) {
+      wires = { ...geometry, upto: -1 };
+      schedule();
+    },
+
+    setWiresUpto(upto) {
+      if (wires) wires.upto = upto;
       schedule();
     },
 

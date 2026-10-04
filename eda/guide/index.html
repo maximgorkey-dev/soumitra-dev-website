@@ -41,10 +41,10 @@
         number it is minimising, what it is not allowed to break, and the characteristic way each one fails.
       </p>
       <p class="guide-lead">
-        The <a href="/eda/">interactive demo</a> runs seven of these stages for real, from the netlist through
-        to timing, on a small design, in your browser. Synthesis, detail routing and signoff are explained here
-        too, because a flow described only as far as someone got round to implementing it is a misleading
-        picture of the flow.
+        The <a href="/eda/">interactive demo</a> runs nine of these stages for real, from the netlist through
+        detail routing to timing on extracted parasitics, on a small design, in your browser. Synthesis and
+        signoff are explained here too, because a flow described only as far as someone got round to
+        implementing it is a misleading picture of the flow.
       </p>
     </section>
 
@@ -56,8 +56,9 @@
       <a class="flow-chip flow-live" href="#place"><span>Global place</span><em>runs</em></a>
       <a class="flow-chip flow-live" href="#legalize"><span>Legalise</span><em>runs</em></a>
       <a class="flow-chip flow-live" href="#cts"><span>Clock tree</span><em>runs</em></a>
+      <a class="flow-chip flow-live" href="#holdfix"><span>Hold fix</span><em>runs</em></a>
       <a class="flow-chip flow-live" href="#groute"><span>Global route</span><em>runs</em></a>
-      <a class="flow-chip" href="#droute"><span>Detail route</span><em>explained</em></a>
+      <a class="flow-chip flow-live" href="#droute"><span>Detail route</span><em>runs</em></a>
       <a class="flow-chip flow-live" href="#sta"><span>Timing</span><em>runs</em></a>
       <a class="flow-chip" href="#signoff"><span>Signoff</span><em>explained</em></a>
     </nav>
@@ -503,11 +504,72 @@
       <p class="in-demo">
         <strong>In the demo.</strong> The clock tree is built geometrically, by the method of means and medians:
         the flops are split in two at the median along the longer side of their bounding box, each half again,
-        until a group is small enough for one buffer, with a buffer at the centroid of every group. Delays are
-        Elmore, and the stage reports skew and insertion delay. Two simplifications: buffers are timed at their
-        ideal positions rather than legalised into rows, and the residual skew is not balanced out by zero-skew
-        merging or wire snaking. The stage's explainer has the algorithm as C++; the code that runs is
-        <a href="/eda/flow/cts.js">/eda/flow/cts.js</a>.
+        until a group is small enough for one buffer, with a buffer at the centroid of every group. Each buffer
+        is then inserted as a real cell on the nearest free legal site, the clock net is split into one net per
+        buffer, and the tree is timed with Elmore delay from the buffers' actual pins. Finally it is balanced,
+        bottom-up: a buffer whose subtree arrives early gets a serpentine of extra wire on its output, drawn in
+        yellow. Clock wire here has so little resistance that a snake barely delays anything by its length; it
+        works through its capacitance, slowing the buffer driving it by R<sub>drive</sub> × C<sub>snake</sub>,
+        and only that buffer's subtree sees it. On the registered adder this takes skew from about 20 ps to
+        under 1 ps. What it does not do is zero-skew merging (DME), which chooses the merge points themselves
+        for balance rather than fixing the delays afterwards. The stage's explainer has the algorithm as C++;
+        the code that runs is <a href="/eda/flow/cts.js">/eda/flow/cts.js</a>.
+      </p>
+    </section>
+
+    <!-- ------------------------------------------------------- holdfix -->
+    <section class="guide-section" id="holdfix">
+      <div class="guide-head">
+        <h2>Hold fixing</h2>
+        <span class="badge badge-live">runs in the demo</span>
+      </div>
+
+      <p>
+        Once a real clock tree exists, timing can be measured with real clock arrival times for the first time,
+        and the first thing that measurement usually shows is hold violations. Hold is the check that data does
+        not arrive <em>too soon</em>: new data must not reach a flop before the clock edge that should capture
+        the old data has finished doing so. The fix is the opposite of every other timing fix in the flow. The
+        path has to be made slower.
+      </p>
+      <p>
+        That is done by splicing a delay cell — a buffer built to be slow — into the wire right in front of the
+        failing flop input, which delays that one endpoint and nothing else. It belongs to post-clock-tree
+        optimisation, and it runs before routing, on placement-based wire estimates, with a little guard band
+        so that routing cannot push the check back under.
+      </p>
+
+      <dl class="spec">
+        <div><dt>In</dt><dd>A placed design with its clock tree and every flop's clock latency</dd></div>
+        <div><dt>Out</dt><dd>Delay cells inserted and legalised in front of the failing inputs</dd></div>
+        <div><dt>Optimises</dt><dd>The fewest, smallest cells that bring every hold check above a margin</dd></div>
+        <div><dt>Constrained by</dt><dd>Setup slack on the same path, and free sites near the flop</dd></div>
+        <div><dt>Goes wrong when</dt><dd>A path is short for hold and long for setup at once</dd></div>
+      </dl>
+
+      <details class="deeper">
+        <summary>Going deeper</summary>
+        <p>
+          The usual cause is the clock tree itself. Every flop now sees its clock late by the tree's insertion
+          delay, a couple of hundred picoseconds even on a small block. Data from a primary input is launched
+          relative to the ideal clock at the port, so input-to-flop paths lose that whole insertion delay from
+          their hold margin. Between two flops, it is skew that does the damage: a capture flop clocked later
+          than its launch flop gives the data that much longer to race through.
+        </p>
+        <p>
+          Every picosecond added for hold comes out of the same path's setup budget. A tool therefore inserts
+          only where setup can absorb it, and a path that fails both is not a buffering problem at all: it is a
+          clock tree that needs fixing, or a constraint that is wrong. Hold also does not improve with a slower
+          clock, which is why a hold failure found after tape-out is a dead chip rather than a slow one.
+        </p>
+      </details>
+      <p class="in-demo">
+        <strong>In the demo.</strong> Hold is fixed right after the clock tree, using bounding-box wire
+        estimates. Every flop input with less than 15 ps of hold slack gets a buffer if a buffer covers what is
+        missing, or a 60 ps DLY cell if not, placed on the nearest free site just in front of the pin, provided
+        its setup slack keeps 25 ps afterwards. On the registered adder all 17 input flops fail, at about −27 ps
+        once the balanced clock tree is in. After the fix the worst hold slack is about +50 ps, and setup barely
+        moves. Push utilisation to 85% and some cells no longer fit; the log says which. The code is
+        <a href="/eda/flow/holdfix.js">/eda/flow/holdfix.js</a>.
       </p>
     </section>
 
@@ -565,11 +627,12 @@
       </details>
       <p class="in-demo">
         <strong>In the demo.</strong> The core is cut into a grid of tiles with a track capacity on every tile
-        boundary. Each net is decomposed into two-pin connections along its minimum spanning tree, routed first
-        as the cheaper L-shape, and then overflowing nets are ripped up and rerouted with A* under PathFinder's
-        negotiated-congestion cost. The overlay shows demand on each tile boundary rather than per-net wires,
-        and the clock is left out because clock tree synthesis already routed it. The stage's explainer has the
-        algorithm as C++; the code that runs is <a href="/eda/flow/groute.js">/eda/flow/groute.js</a>.
+        boundary. Each net is decomposed into pin-to-pin connections along its minimum spanning tree, routed
+        first as the cheaper L-shape, and then overflowing nets are ripped up and rerouted with A* under
+        PathFinder's negotiated-congestion cost. While it runs, the overlay shows demand on each tile boundary;
+        detail routing replaces that with the actual wires. The clock is left out because clock tree synthesis
+        already routed it. The stage's explainer has the algorithm as C++; the code that runs is
+        <a href="/eda/flow/groute.js">/eda/flow/groute.js</a>.
       </p>
     </section>
 
@@ -577,7 +640,7 @@
     <section class="guide-section" id="droute">
       <div class="guide-head">
         <h2>Detail routing</h2>
-        <span class="badge">not run in the demo</span>
+        <span class="badge badge-live">runs in the demo</span>
       </div>
 
       <p>
@@ -623,6 +686,20 @@
           redundancy: a doubled via where there is room for one is free insurance against a single via failing.
         </p>
       </details>
+      <p class="in-demo">
+        <strong>In the demo.</strong> A scaled-down version of the real thing, in three steps. Track
+        assignment: each global route is cut into straight runs, horizontal runs go on M3 or M5 and vertical
+        ones on M4 or M6, and every tile row and column hands out its tracks by the left-edge algorithm from
+        channel routing, with long runs preferring the thick upper layer. Repair: where a run really ends
+        depends on where its neighbours turn, so the finished geometry is checked for wires of different nets
+        less than a pitch apart on one track, and offenders are moved to another track, into the next tile row
+        or column, or swap tracks, keeping a change only if the count falls. Every preset ends with zero
+        shorts; starve it of routing supply and the survivors are reported by net and position. Extraction:
+        every net becomes an RC tree from its segments, each on its own layer, plus via resistance, and timing
+        reads the Elmore delay to each sink. What is left out: a maze search over the full track grid, spacing
+        and end-of-line rules beyond a pitch, and real pin access into the cells' own M1. The code is
+        <a href="/eda/flow/droute.js">/eda/flow/droute.js</a>.
+      </p>
     </section>
 
     <!-- ------------------------------------------------------- sta -->
@@ -687,12 +764,13 @@
       </details>
       <p class="in-demo">
         <strong>In the demo.</strong> Arrival times are propagated in one topological pass, with cell delays
-        from the library, Elmore wire delays on global-route lengths (bounding-box estimates if routing has not
-        run), and each flop's clock latency from the clock tree. Setup and hold are checked at every flop, in a
-        single corner. Nothing fixes hold afterwards, so expect the default registered adder to show a small
-        negative hold slack, around −21 ps: its clock skew is larger than the margin on its shortest path. A
-        real flow would insert delay buffers on that path. The stage's explainer has the algorithm as C++; the
-        code that runs is <a href="/eda/flow/sta.js">/eda/flow/sta.js</a>.
+        from the library, wire delays from the RC trees extracted after detail routing, and each flop's clock
+        latency from the clock tree. Setup and hold are checked at every flop, in a single corner, and the log
+        prints the critical path. The same code runs earlier on estimates, inside hold fixing. On these small
+        blocks wires are short, so extraction moves a sink's delay by a fraction of a picosecond; on a real
+        chip, where wires are long and thin, that difference is where timing closure lives. The stage's
+        explainer has the algorithm as C++; the code that runs is
+        <a href="/eda/flow/sta.js">/eda/flow/sta.js</a>.
       </p>
     </section>
 
@@ -725,10 +803,11 @@
       <div class="guide-head"><h2>What the demo actually runs</h2></div>
 
       <p>
-        Seven stages, with real algorithms rather than animations of algorithms: the netlist compiler, the
+        Nine stages, with real algorithms rather than animations of algorithms: the netlist compiler, the
         floorplanner with its packing feasibility check, an analytic force-directed global placer, an Abacus
-        legaliser, a means-and-medians clock tree, a negotiated-congestion global router, and static timing
-        analysis with setup and hold checks. They are the genuine article, scaled down — the same objectives,
+        legaliser, a means-and-medians clock tree with legalised buffers and skew balancing, hold fixing with
+        delay cells, a negotiated-congestion global router, a track-assigning detail router with RC
+        extraction, and static timing analysis with setup and hold checks. They are the genuine article, scaled down — the same objectives,
         the same models, the same failure modes, on hundreds of cells instead of hundreds of thousands. From the
         floorplan onwards, each stage's explainer in the demo includes its algorithm written out as C++. It runs in a Web Worker so the numerical loop does not freeze the page, and draws to a
         canvas so that thousands of flylines stay smooth.

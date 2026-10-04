@@ -18,13 +18,11 @@ export const STAGES = [
   { id: "place", label: "Global place" },
   { id: "legalize", label: "Legalise" },
   { id: "cts", label: "Clock tree" },
+  { id: "holdfix", label: "Hold fix" },
   { id: "groute", label: "Global route" },
+  { id: "droute", label: "Detail route" },
   { id: "sta", label: "Timing" },
 ];
 
-/**
- * Stages a real flow runs that this app explains but does not perform. Detail
- * routing sits between global routing and signoff timing in a real flow; here
- * timing runs on global-route lengths instead of extracted parasitics.
- */
-export const PLANNED = [{ id: "droute", label: "Detail route" }];
+/** Stages a real flow runs that this app explains but does not perform. */
+export const PLANNED = [];

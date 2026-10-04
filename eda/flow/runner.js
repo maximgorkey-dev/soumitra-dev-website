@@ -18,6 +18,8 @@ import { globalPlace } from "./globalplace.js";
 import { legalize } from "./legalize.js";
 import { clockTreeSynthesis } from "./cts.js";
 import { globalRoute } from "./groute.js";
+import { detailRoute } from "./droute.js";
+import { fixHold } from "./holdfix.js";
 import { staticTiming } from "./sta.js";
 import { STAGES } from "./stages.js";
 
@@ -248,8 +250,30 @@ export function createRunner(emit) {
     );
     if (!result) return { metrics: {}, logs: ["cancelled"] };
     design.clockLatency = result.latency;
+    emitEco();
     return result;
   }
+
+  /** Cells and nets were added after placement; the UI's copy has to catch up. */
+  function emitEco() {
+    emit({ t: "eco", design: serialize(design) });
+  }
+
+  async function stageHold() {
+    const result = await drain(
+      fixHold(design),
+      (v) => {
+        emitEco();
+        stageMetric("holdfix", `pass ${v.pass} · ${v.inserted} cells`);
+      },
+      80
+    );
+    if (!result) return { metrics: {}, logs: ["cancelled"] };
+    emitEco();
+    return result;
+  }
+
+  const stageMetric = (stage, text) => emit({ t: "progress", stage, text });
 
   async function stageRoute() {
     const result = await drain(
@@ -262,6 +286,18 @@ export function createRunner(emit) {
     );
     if (!result) return { metrics: {}, logs: ["cancelled"] };
     design.netWire = result.netWire;
+    design.guides = result.guides;
+    return result;
+  }
+
+  async function stageDetail() {
+    const result = await drain(
+      detailRoute(design, design.guides),
+      (v) => emit({ t: "wires", geometry: v.geometry, upto: v.upto, metrics: v.metrics }),
+      70
+    );
+    if (!result) return { metrics: {}, logs: ["cancelled"] };
+    design.parasitics = result.parasitics;
     return result;
   }
 
@@ -288,7 +324,9 @@ export function createRunner(emit) {
       else if (stage.id === "place") res = await stagePlace();
       else if (stage.id === "legalize") res = await stageLegalize();
       else if (stage.id === "cts") res = await stageCts();
+      else if (stage.id === "holdfix") res = await stageHold();
       else if (stage.id === "groute") res = await stageRoute();
+      else if (stage.id === "droute") res = await stageDetail();
       else if (stage.id === "sta") res = stageSta();
       else throw new Error(`no implementation for stage ${stage.id}`);
 
@@ -416,6 +454,7 @@ function serialize(design) {
       x: c.x,
       y: c.y,
       orient: c.orient,
+      role: c.role || null,
     })),
     ports: design.ports.map((p) => ({
       index: p.index,

@@ -62,6 +62,17 @@ export const LIBRARY = {
     intrinsic: { A: 26 },
   }),
 
+  // A delay cell: a buffer built from long, weak transistors, so it is slow on
+  // purpose. Hold fixing inserts these; nothing else should want one.
+  DLY: cell({
+    name: "DLY", width: 800, kind: "buf", driveRes: 6.0,
+    pins: [
+      { name: "A", dir: "input", x: 100, y: 700, cap: 1.8 },
+      { name: "Y", dir: "output", x: 700, y: 900 },
+    ],
+    intrinsic: { A: 60 },
+  }),
+
   NAND2: cell({
     name: "NAND2", width: 600, driveRes: 6.0,
     pins: [

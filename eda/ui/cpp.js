@@ -240,7 +240,69 @@ void propagate(const Node& n, double tIn, std::vector<double>& latency) {
 
 double skew(const std::vector<double>& latency) {
   auto [lo, hi] = std::minmax_element(latency.begin(), latency.end());
-  return *hi - *lo;                            // what DME and wire snaking would remove
+  return *hi - *lo;
+}
+
+// Insertion: every node becomes a real cell on the nearest free legal site,
+// and the clock net is split into one net per buffer. From here on, delays
+// are measured from the buffers' actual pins, not from n.p.
+void insert(Design& d, Node& n) {
+  n.cell = d.addCell(n.buf->name, Role::Clock);
+  if (!d.placeNear(*n.cell, n.p)) throw std::runtime_error("no room for a clock buffer");
+  for (Node* c : { n.left.get(), n.right.get() }) if (c) insert(d, *c);
+}
+
+// Balancing, bottom-up. Clock wire on M5 has so little resistance that a
+// snake in series barely delays anything; what it does have is capacitance.
+// Hung on an early buffer's output it slows that buffer by R_drive * C_snake,
+// and only that buffer's subtree sees it.
+double latest(const Node& n);                  // input pin -> latest sink beneath
+
+void balance(Node& n) {
+  if (!n.left) return;
+  balance(*n.left);
+  balance(*n.right);
+  const double a = wireDelay(n, *n.left)  + latest(*n.left);
+  const double b = wireDelay(n, *n.right) + latest(*n.right);
+  Node& early = a < b ? *n.left : *n.right;
+  const double missing = std::abs(a - b);
+  const double cap = missing / early.buf->driveRes;          // fF
+  const long len = std::lround(cap / CAP_PER_DBU / SNAKE_STEP) * SNAKE_STEP;
+  early.snake += len;                          // whole tracks: a little skew survives
+}`,
+  },
+
+  holdfix: {
+    file: "holdfix.js",
+    code: String.raw`// Hold fixing: splice a delay cell in front of every flop input whose data
+// arrives too soon, if its setup slack can pay for it.
+constexpr double HOLD_TARGET = 15;             // ps of hold slack to end with
+constexpr double SETUP_KEEP  = 25;             // ps of setup slack that must remain
+
+void fixHold(Design& d) {
+  for (int pass = 0; pass < 4; ++pass) {
+    Timing t = staticTiming(d);                // placement-based wire estimates
+    std::vector<Endpoint*> failing;
+    for (Endpoint& e : t.endpoints)
+      if (e.isFlopInput && e.hold < HOLD_TARGET) failing.push_back(&e);
+    if (failing.empty()) return;
+    std::sort(failing.begin(), failing.end(),
+              [](auto* a, auto* b) { return a->hold < b->hold; });
+
+    for (Endpoint* e : failing) {
+      const double missing = HOLD_TARGET - e->hold;
+      const Cell& type = delayOf(BUF, e->pinCap) >= missing ? BUF : DLY;
+      const double added = delayOf(type, e->pinCap);
+      if (e->setup - added < SETUP_KEEP) continue;   // would trade hold for setup
+
+      Cell& c = d.addCell(type, Role::Hold);
+      if (!d.placeNear(c, e->pinPos - Point{ c.width, 0 })) continue;
+      // net -> flop.D  becomes  net -> c.A,  c.Y -> flop.D
+      Net& net = d.nets[e->net];
+      net.replaceSink(e->term, c.pin("A"));
+      d.addNet(c.pin("Y"), { e->term });
+    }
+  }
 }`,
   },
 
@@ -307,6 +369,47 @@ void globalRoute(Grid& g, std::vector<Conn>& conns, int maxRounds) {
       commit(g, c.path, +1);                   // reroute
     }
   }
+}`,
+  },
+
+  droute: {
+    file: "droute.js",
+    code: String.raw`// Detail routing as track assignment + pin access, then RC extraction.
+struct Run { char dir; int line, lo, hi; int layer; long coord, a, b; int net; };
+
+// 1. Cut each connection's tile path into maximal straight runs.
+// 2. Left-edge algorithm per tile row / column: sort by start, take the first
+//    track that is free by then. Long runs prefer the thick upper layer.
+void assignTracks(std::vector<Run*>& channel, const std::vector<Slot>& slots) {
+  std::sort(channel.begin(), channel.end(),
+            [](auto* p, auto* q) { return p->lo < q->lo; });
+  std::map<const Slot*, int> freeFrom;
+  for (Run* r : channel) {
+    const auto order = (r->hi - r->lo + 1 >= LONG_RUN) ? upperFirst(slots) : lowerFirst(slots);
+    const Slot* s = firstWhere(order, [&](const Slot* t) { return freeFrom[t] <= r->lo; });
+    if (!s) s = soonestFree(order, freeFrom);
+    freeFrom[s] = std::max(freeFrom[s], r->hi);
+    r->layer = s->layer;
+    r->coord = origin(r->dir) + r->line * GCELL + s->offset;
+  }
+}
+
+// 3. A run really reaches from where its neighbours turn into and out of it,
+//    so collisions are found on the finished geometry and repaired: move the
+//    run, or a neighbour, to another track, the next tile row over, or trade
+//    tracks; keep a change only if the total number of collisions falls.
+int collisions(const std::vector<Run*>& runs);
+bool repair(Run& r);                           // try in that order
+
+// 4. Extract: one RC branch per connection (segments on their own layers plus
+//    via cuts), oriented away from the driver, then Elmore to every sink.
+void extract(const Net& n, const std::vector<Branch>& tree, Parasitics& out) {
+  std::vector<double> down(n.pins(), 0.0), at(n.pins(), 0.0);
+  for (int p = 1; p < n.pins(); ++p) down[p] = n.pinCap(p);
+  for (const Branch& b : reversed(tree)) down[b.from] += b.C + down[b.to];
+  for (const Branch& b : tree)               // tree is in breadth-first order
+    at[b.to] = at[b.from] + b.R * (b.C / 2 + down[b.to]);
+  for (int p = 1; p < n.pins(); ++p) out.delay[{ n.id, p }] = at[p];
 }`,
   },
 
