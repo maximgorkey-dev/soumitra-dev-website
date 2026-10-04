@@ -21,13 +21,16 @@ sessions (split before starting).
 2. U-1 sign-in check of the new topics — two minutes, needs you.
 3. OPS-3 line endings and a local git clone — removes friction from every later item.
 4. ALG-6 validator rules — cheap, protects all the content waves after it.
-5. ALG-2a grid DP wave — builds straight on the grid view just shipped.
-6. ALG-2b grid search wave.
-7. ALG-4 tree renderer — the last big gap in what the algorithms app can draw.
-8. PAT-1 live object animation — the most valuable patterns item, and the largest.
+5. ALG-10 interview-ordered content plan — sets the order for every wave below.
+6. ALG-2a grid DP wave, then ALG-2b grid search — straight on the new grid view.
+7. ALG-4 tree renderer — the largest single gain for interview coverage.
+8. ALG-11 state machines on the graph view — no new renderer, a whole DP family.
+9. ALG-12 practice mode — trains the skill interviews actually grade.
+10. PAT-1 live object animation — the most valuable patterns item, and the largest.
+11. ALG-13 thread timeline — the concurrency questions L6 interviews use.
 
-After that, pick by mood: more content (ALG, PAT), EDA depth (EDA), or notes
-polish (NOTES).
+After that, pick by mood: more content (ALG, PAT), new views (ALG-5, ALG-14),
+EDA depth (EDA), or notes polish (NOTES).
 
 ---
 
@@ -186,13 +189,100 @@ Detail: `apps/algorithms/ROADMAP.md` sections 4–6. Every new topic ends in
   way for a topic to accept edited input. Done when a wall drawn across the
   shortest path makes the animation find the detour.
 
-- [ ] **ALG-5 — Chart renderer (M, optional).** For probability and statistics
-  topics (law of large numbers, reservoir sampling, Monte Carlo π). Only if
-  there is appetite after ALG-4.
+- [ ] **ALG-5 — Chart renderer (M).** Some arguments only show at scale or over
+  many runs, and 8-element animations hide them. `views/chart.js`: line and
+  bar series against a step or n axis, with a moving cursor synced to the
+  frame. Topics: amortised cost (dynamic array doubling, cumulative vs
+  per-push cost; union-find with and without path compression), approach
+  comparison (operations of O(n²) vs O(n log n) as n grows, from counted runs),
+  randomised and streaming (reservoir sampling converging to uniform, Monte
+  Carlo π, Count-Min sketch error). Done when the doubling topic shows the
+  spikes and the flat average on one chart.
 
 - [ ] **ALG-9 — Roadmap cleanup (S).** ROADMAP §7 and §9 describe hand-offs to
-  the other account, which no longer apply. Collapse them into a short
-  "content waves" list matching ALG-1 to ALG-4.
+  the other account, which no longer apply. Replace them with the content
+  order in ALG-10.
+
+### Interview coverage (L5/L6)
+
+What the visualiser teaches best is a visible invariant on a small input. These
+items fill the gaps where that isn't enough on its own: state machines, writing
+code under test, concurrency, geometry, and greedy proofs.
+
+- [ ] **ALG-10 — Interview-ordered content plan (S, then drives ALG-1 to 4).**
+  Order every content wave by interview frequency rather than by renderer,
+  and record it in ROADMAP §9. Target list, highest value first:
+  - *Sequence:* variable sliding window (at most K distinct, minimum window
+    substring); monotonic stack (largest rectangle in histogram, trapping rain
+    water); binary search boundaries and binary search on the answer (Koko,
+    ship within D days) with a true/false predicate row; prefix sum + hash map
+    (subarray sum equals K); intervals (merge, insert, meeting rooms); KMP.
+  - *Grid:* edit distance, knapsack, unique paths; interval DP filled by
+    diagonal (longest palindromic subsequence, burst balloons); multi-source and
+    0-1 BFS; islands and surrounded regions; Dijkstra on a grid (swim in rising
+    water); longest increasing path in a matrix (memoised DFS).
+  - *Graph:* topological sort (course schedule, alien dictionary); union-find
+    (accounts merge, redundant connection); Bellman-Ford with K stops (cheapest
+    flights); word ladder as BFS on an implicit graph (show only the explored part).
+  - *Tree (after ALG-4):* two heaps for a running median; top K and merge K
+    lists; trie with word search II; LCA, validate BST, max path sum,
+    serialise/deserialise; backtracking trees (permutations, combination sum,
+    N-Queens, word search with pruning); tree DP (house robber III).
+  - *Objects view:* LRU cache (hash map + doubly linked list pointer surgery)
+    and LFU; iterator design questions (flatten nested list, peeking iterator)
+    linked to the Iterator pattern.
+  Done when the roadmap lists these in order with a renderer per item.
+
+- [ ] **ALG-11 — State machines on the graph view (S–M).** Several DP families
+  are a small state machine in disguise: buy/sell stock with cooldown, with a
+  fee, at most K transactions; also regex/wildcard matching and "decode ways".
+  Draw states as graph nodes and transitions as edges; each day lights the
+  edges taken and writes the best value into each node. Needs directed edges
+  and node value labels in `views/graph.js` (check what exists first); no new
+  renderer. Start with "stock with cooldown". Done when the three-state machine
+  plays day by day and matches its C++ Result.
+
+- [ ] **ALG-12 — Practice mode on the live runner (M).** The interview skill is
+  writing correct code under time pressure, which watching doesn't train.
+  Per topic: hide the reference code, give a signature and an empty body,
+  run the user's code in the sandbox against the animation's input plus hidden
+  edge cases (empty input, single element, duplicates, all equal, maximum
+  size), and report pass/fail per case with the expected Result. Optional
+  timer. Builds on `POST /api/algorithms/program`; edge cases live in the
+  topic as `practice: { signature, cases: [{ input, expect }] }`. Done when
+  a wrong sliding-window solution fails the "all equal" case with a clear diff.
+
+- [ ] **ALG-13 — Thread timeline renderer (M–L).** Concurrency comes up at L6
+  (bounded blocking queue, producer/consumer, thread-safe LRU, deadlock and
+  lock ordering, "print FooBar alternately", dining philosophers), and the
+  insight is interleavings, which no current view can show. `views/timeline.js`:
+  one lane per thread, time left to right, events (lock, unlock, wait, notify,
+  read, write) as marks, held locks as bars, and a highlighted race or deadlock
+  cycle. Topics show a broken interleaving first, then the fix. Done when the
+  deadlock topic shows two threads each holding the lock the other wants.
+
+- [ ] **ALG-14 — 2-D plane renderer for geometry and sweeps (M).** Skyline,
+  rectangle union area, K closest points, convex hull, closest pair, and
+  meeting rooms drawn as a sweep. `views/plane.js`: points, segments and
+  rectangles in coordinates, a moving sweep line, and the active set listed
+  beside it. Done when the skyline topic shows the heap's active heights
+  changing at each event.
+
+- [ ] **ALG-15 — "Why greedy wins" frames (S per topic).** Greedy problems
+  (jump game, gas station, task scheduler, non-overlapping intervals, candy)
+  are asked for the proof, which an animation of the greedy alone doesn't
+  give. Add an exchange-argument step to each: run the obvious alternative on
+  the same input beside the greedy, and show where it does worse. Uses the
+  sequence view's two rows. Done when gas station shows the "start after the
+  deficit" argument explicitly.
+
+- [ ] **ALG-16 — Systems follow-ups, lightly (M, optional).** For L6 follow-ups
+  ("doesn't fit in memory", "distributed", "a stream"), animate the few that
+  are genuinely visual: consistent hashing on a ring (add a node, watch
+  which keys move), a Bloom filter on the sequence view (bits set per insert,
+  a false positive), token bucket rate limiting on the chart view, and
+  external merge sort as runs merging. The rest are trade-off discussions:
+  explanation text only.
 
 ---
 
