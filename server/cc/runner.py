@@ -474,8 +474,9 @@ def run_program(payload: dict) -> dict:
     """
     A whole translation unit with its own includes and main(), as the pattern
     listings are. There is no harness and no frame protocol: the result is the
-    program's stdout, which the browser compares with the animation. Same
-    sandbox, limits and lock as run_job.
+    program's stdout, which the browser compares with the animation. A program
+    may include pattrace.hpp; its event lines come back inside stdout and the
+    browser turns them into frames. Same sandbox, limits and lock as run_job.
     """
     source = payload.get("source") or ""
     if not isinstance(source, str) or not source.strip():
@@ -489,6 +490,7 @@ def run_program(payload: dict) -> dict:
 
     try:
         (job / "main.cpp").write_text(source, encoding="utf-8")
+        shutil.copyfile(BASE / "pattrace.hpp", job / "pattrace.hpp")
         (job / "empty.txt").write_bytes(b"")
 
         t0 = time.monotonic()

@@ -134,9 +134,14 @@ comparison card in the flashcard deck.
   edits any listing and runs it in the algorithms sandbox
   (`POST /api/algorithms/program`, `run_program` in `server/cc/runner.py`).
   The traced listing's stdout is compared line by line with the animation's
-  `printed` metrics. Still open: streaming object-created and call events from
-  the edited program into the objects view, which needs a trace header the
-  listings include.
+  `printed` metrics. Live animation shipped the same day: a listing that
+  includes `server/cc/pattrace.hpp` (copied into each job by the runner)
+  writes `TRACE_NEW` / `TRACE_CALL` / `TRACE_DEL` events to stdout as lines
+  starting with 0x1E, in order with its own prints. `core/live-trace.js`
+  strips them before the output comparison and turns them into objects-view
+  frames (one per event; an address reused after a delete is a new box).
+  Strategy and Observer have a `live.cpp`; the self-test checks it prints
+  the same as the traced listing and converts cleanly.
 - **Quizzes.** Shipped 2026-10-04 as the "Design Patterns in C++" flashcard
   deck (`server/seed/design-patterns.json`): one "which pattern is this?"
   card per pattern, linking back to its walkthrough, plus comparison cards.

@@ -98,6 +98,85 @@ int main() {
 }
 `;
 
+const LIVE = `// observer.cpp with trace events, so Run animates whatever you change.
+// Try it: add a "class Sms : public PriceObserver" and subscribe one in main().
+#include <algorithm>
+#include <cstdio>
+#include <string>
+#include <vector>
+#include "pattrace.hpp"
+
+class PriceObserver {
+public:
+    explicit PriceObserver(const char* name) { TRACE_NEW(this, name); }
+    virtual ~PriceObserver() { TRACE_DEL(this); }
+    virtual void onPrice(int price) = 0;
+};
+
+class PriceFeed {
+public:
+    PriceFeed() { TRACE_NEW(this, "PriceFeed"); }
+    void subscribe(PriceObserver* o) { observers_.push_back(o); }
+    void unsubscribe(PriceObserver* o) { std::erase(observers_, o); }
+
+    void set(int price) {
+        price_ = price;
+        for (PriceObserver* o : observers_) {
+            TRACE_CALL(this, o, "onPrice(" + std::to_string(price) + ")");
+            o->onPrice(price);
+        }
+    }
+
+private:
+    int price_ = 0;
+    std::vector<PriceObserver*> observers_;
+};
+
+class Chart : public PriceObserver {
+public:
+    Chart() : PriceObserver("Chart") {}
+    void onPrice(int p) override { std::printf("chart plots %d\\n", p); }
+};
+
+class Alert : public PriceObserver {
+public:
+    Alert() : PriceObserver("Alert") {}
+    void onPrice(int p) override {
+        if (p > 105) std::printf("alert: price above 105 (%d)\\n", p);
+    }
+};
+
+class Logger : public PriceObserver {
+public:
+    Logger() : PriceObserver("Logger") {}
+    void onPrice(int p) override { std::printf("log %d\\n", p); }
+};
+
+int main() {
+    PriceFeed feed;
+    Chart chart;
+    Alert alert;
+    Logger logger;
+
+    TRACE_CALL(&chart, &feed, "subscribe");
+    feed.subscribe(&chart);
+    TRACE_CALL(&alert, &feed, "subscribe");
+    feed.subscribe(&alert);
+    TRACE_CALL("main", &feed, "set(101)");
+    feed.set(101);
+
+    TRACE_CALL(&logger, &feed, "subscribe");
+    feed.subscribe(&logger);
+    TRACE_CALL("main", &feed, "set(107)");
+    feed.set(107);
+
+    TRACE_CALL(&chart, &feed, "unsubscribe");
+    feed.unsubscribe(&chart);
+    TRACE_CALL("main", &feed, "set(99)");
+    feed.set(99);
+}
+`;
+
 const MODERN = `// Modern: callbacks instead of a base class, and a Subscription object that
 // unsubscribes in its destructor. The classic version's worst bug — an
 // observer destroyed while still subscribed, leaving a dangling pointer in the
@@ -336,6 +415,7 @@ export const observer = {
       { name: "before.cpp", note: "The problem: the feed names every consumer.", source: BEFORE },
       { name: "observer.cpp", note: "The classic pattern, which the animation follows.", source: AFTER, traced: true },
       { name: "modern.cpp", note: "Callbacks plus a Subscription that unsubscribes itself when destroyed.", source: MODERN },
+      { name: "live.cpp", note: "observer.cpp with trace events: edit it on the Run tab and the player animates your run.", source: LIVE },
     ],
   },
 };

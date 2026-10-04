@@ -27,7 +27,7 @@ sessions (split before starting).
 7. ALG-4 tree renderer — the largest single gain for interview coverage.
 8. ALG-11 state machines on the graph view — no new renderer, a whole DP family.
 9. ALG-12 practice mode — trains the skill interviews actually grade.
-10. PAT-1 live object animation — the most valuable patterns item, and the largest.
+10. PAT-1b live listings for more patterns — cheap now that the machinery exists.
 11. ALG-13 thread timeline — the concurrency questions L6 interviews use.
 
 After that, pick by mood: more content (ALG, PAT), new views (ALG-5, ALG-14),
@@ -42,7 +42,8 @@ EDA depth (EDA), or notes polish (NOTES).
   a box, then Back; also Iterator, Memento, Proxy, Flyweight, Template
   Method, Adapter, Bridge, Builder, Singleton) and `/apps/algorithms/`
   (Dynamic programming → Longest common subsequence; Grid search → Shortest
-  path in a maze). Flashcards: the patterns deck should show 5 new
+  path in a maze). Strategy → Run tab → live.cpp → Compile and run: the
+  player should switch to your run. Flashcards: the patterns deck should show 5 new
   comparison cards. Done when each plays end to end and nothing overlaps
   badly; report any frame that looks wrong. Every patterns frame has been
   checked on the public preview; only the signed-in pages are unchecked.
@@ -294,14 +295,12 @@ code under test, concurrency, geometry, and greedy proofs.
 
 Detail: `apps/patterns/ROADMAP.md`.
 
-- [ ] **PAT-1 — Animate your own edited program (L).** The Run tab compiles and
-  runs an edited listing and compares its output, but the objects view still
-  shows the pre-written frames. Plan: a small `trace.hpp` the listings include
-  (`TRACE_NEW(obj, label)`, `TRACE_CALL(from, to, label)`, `TRACE_PRINT`), the
-  runner returning those NDJSON events in `program` mode, and a converter in
-  the browser that builds objects-view frames from them (boxes appear on
-  `new`, a message per call). Start with Strategy and Observer. Done when
-  adding a new strategy class in the editor makes a new box appear in the run.
+- [ ] **PAT-1b — More live listings (S each).** Strategy and Observer have a
+  `live.cpp` that animates the user's own run (`server/cc/pattrace.hpp`,
+  `core/live-trace.js`). Add one to the other objects-view patterns: copy the
+  traced listing, name objects in base constructors with `TRACE_NEW`, and
+  put `TRACE_CALL` before each call worth seeing. The self-test checks that
+  it prints the same as the traced listing.
 
 - [ ] **PAT-2 — Promote more notes (S–M each).** 10 patterns are still one
   page each. Next candidates: Factory Method, Facade, Prototype, Abstract
@@ -383,7 +382,8 @@ roughly by how much a reviewer would notice:
 
 ## Done log
 
-- 2026-10-04 — Patterns: Template Method, Adapter, Bridge, Builder, Singleton animated (PAT-2 first wave).
+- 2026-10-04 — Patterns: your own edited program animates (PAT-1): `pattrace.hpp`, browser converter, live.cpp for Strategy and Observer.
+- 2026-10-04 — Patterns: Template Method, Adapter, Bridge, Builder, Singleton animated (PAT-2 first wave, `666fc18`).
 - 2026-10-04 — Patterns: clickable pattern map (`5ce87ac`); comparison cards for every map pair, plus `tools/seed-topup.py` (`e1fc344`).
 
 - 2026-10-04 — Patterns: Iterator, Memento, Proxy, Flyweight animated; pattern map added (`8e93a61`).

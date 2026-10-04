@@ -9,6 +9,7 @@
 
 import { ALGORITHMS, DEFAULT_ID, byId, grouped } from "./core/catalog.js";
 import { record } from "./core/trace.js";
+import { splitOutput, printedLines, framesFromRun } from "./core/live-trace.js";
 import { createGraphView } from "./views/graph.js";
 import { createObjectsView } from "./views/objects.js";
 import { createMemoryView } from "./views/memory.js";
@@ -426,6 +427,10 @@ function renderProgramRun(alg) {
       server and executed in a sandbox with no network access and hard memory and CPU ceilings.
       <strong>${esc(files[start].name)}</strong> is the one the animation follows, so its output is
       checked against what the animation prints.
+      ${files.some((f) => f.source.includes("pattrace.hpp"))
+        ? `A listing that includes <code>pattrace.hpp</code>, like <strong>live.cpp</strong>, also animates
+           your run: each <code>TRACE_NEW</code>, <code>TRACE_CALL</code> and <code>TRACE_DEL</code> becomes a step in the player above.`
+        : ""}
     </p>
 
     <div class="run-files" role="tablist">
@@ -537,26 +542,35 @@ async function runProgram(alg, file, source) {
 
     const { compile = 0, run = 0 } = data.timings || {};
     const extra = [data.warnings, data.stderr && `stderr:\n${data.stderr}`].filter(Boolean).join("\n\n");
+    const items = splitOutput(data.stdout);
+    const actual = printedLines(items);
+
+    // TRACE_ events (pattrace.hpp) replace the walkthrough in the player with
+    // this run, even one that crashed partway: that is often the useful part.
+    const live = alg.structure.kind === "objects" ? framesFromRun(items) : { frames: [] };
+    if (live.frames.length) loadFrames(live.frames, "server");
+    const animated = live.frames.length
+      ? ` · ${live.events} trace events animated above (reopen the topic for the walkthrough)`
+      : "";
 
     if (!data.ok) {
-      setRunStatus(data.message || `failed at the ${data.stage} step`, true);
-      showRunOutput([data.diagnostics, data.stdout, data.stderr].filter(Boolean).join("\n"));
+      setRunStatus((data.message || `failed at the ${data.stage} step`) + animated, true);
+      showRunOutput([data.diagnostics, actual.join("\n"), data.stderr].filter(Boolean).join("\n"));
       return;
     }
 
-    const actual = data.stdout ? data.stdout.replace(/\n$/, "").split("\n") : [];
     if (file.traced) {
       const expected = animatedOutput(alg);
       const same = actual.length === expected.length && actual.every((l, i) => l === expected[i]);
       setRunStatus(
-        `${same ? "output matches the animation" : "output differs from the animation"} · compiled in ${compile}s, ran in ${run}s`,
+        `${same ? "output matches the animation" : "output differs from the animation"} · compiled in ${compile}s, ran in ${run}s${animated}`,
         !same
       );
       showComparison(actual, expected);
       showRunOutput(extra);
     } else {
-      setRunStatus(`compiled in ${compile}s, ran in ${run}s`);
-      showRunOutput([data.stdout, extra].filter(Boolean).join("\n"));
+      setRunStatus(`compiled in ${compile}s, ran in ${run}s${animated}`);
+      showRunOutput([actual.join("\n"), extra].filter(Boolean).join("\n"));
     }
   } catch (err) {
     setRunStatus(`could not reach the server: ${err.message}`, true);

@@ -116,6 +116,80 @@ int main() {
 }
 `;
 
+const LIVE = `// strategy.cpp with trace events, so Run animates whatever you change.
+// Try it: add a "class Crypto : public PaymentMethod" and switch to it in main().
+#include <cstdio>
+#include <memory>
+#include <string>
+#include "pattrace.hpp"
+
+class PaymentMethod {
+public:
+    explicit PaymentMethod(const char* name) { TRACE_NEW(this, name); }
+    virtual ~PaymentMethod() { TRACE_DEL(this); }
+    virtual int fee(int amount) const = 0;
+    virtual std::string label() const = 0;
+    virtual void pay(int amount) = 0;
+};
+
+class Card : public PaymentMethod {
+public:
+    Card() : PaymentMethod("Card") {}
+    int fee(int amount) const override { return amount * 2 / 100; }
+    std::string label() const override { return "card"; }
+    void pay(int amount) override { std::printf("charge card %d\\n", amount); }
+};
+
+class Upi : public PaymentMethod {
+public:
+    Upi() : PaymentMethod("Upi") {}
+    int fee(int) const override { return 0; }
+    std::string label() const override { return "UPI"; }
+    void pay(int amount) override { std::printf("send UPI request for %d\\n", amount); }
+};
+
+class Wallet : public PaymentMethod {
+public:
+    Wallet() : PaymentMethod("Wallet") {}
+    int fee(int amount) const override { return amount / 100; }
+    std::string label() const override { return "wallet"; }
+    void pay(int amount) override { std::printf("debit wallet %d\\n", amount); }
+};
+
+class Checkout {
+public:
+    explicit Checkout(std::unique_ptr<PaymentMethod> m) : method_(std::move(m)) { TRACE_NEW(this, "Checkout"); }
+    void setMethod(std::unique_ptr<PaymentMethod> m) { method_ = std::move(m); }
+
+    void pay(int amount) {
+        TRACE_CALL(this, method_.get(), "fee(" + std::to_string(amount) + ")");
+        int total = amount + method_->fee(amount);
+        std::printf("paying by %s\\n", method_->label().c_str());
+        TRACE_CALL(this, method_.get(), "pay(" + std::to_string(total) + ")");
+        method_->pay(total);
+    }
+
+private:
+    std::unique_ptr<PaymentMethod> method_;
+};
+
+int main() {
+    Checkout checkout(std::make_unique<Card>());
+    TRACE_CALL("main", &checkout, "pay(500)");
+    checkout.pay(500);
+
+    TRACE_CALL("main", &checkout, "setMethod(Upi)");
+    checkout.setMethod(std::make_unique<Upi>());
+    TRACE_CALL("main", &checkout, "pay(500)");
+    checkout.pay(500);
+
+    TRACE_CALL("main", &checkout, "setMethod(Wallet)");
+    checkout.setMethod(std::make_unique<Wallet>());
+    TRACE_CALL("main", &checkout, "pay(500)");
+    checkout.pay(500);
+}
+`;
+
 const MODERN = `// Two modern takes on the same idea.
 #include <concepts>
 #include <cstdio>
@@ -411,6 +485,7 @@ export const strategy = {
       { name: "before.cpp", note: "The problem: one enum, a switch per behaviour.", source: BEFORE },
       { name: "strategy.cpp", note: "The classic pattern, which the animation follows.", source: AFTER, traced: true },
       { name: "modern.cpp", note: "The same idea with std::function, and at compile time with a concept.", source: MODERN },
+      { name: "live.cpp", note: "strategy.cpp with trace events: edit it on the Run tab and the player animates your run.", source: LIVE },
     ],
   },
 };

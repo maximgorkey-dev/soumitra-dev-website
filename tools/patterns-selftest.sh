@@ -1,5 +1,6 @@
 #!/bin/bash
-# Self-test for the design-patterns app. Usage: bash _pt.sh [preview-topic-id]
+# Self-test for the design-patterns app.
+# Usage: bash tools/patterns-selftest.sh [show] [preview-topic-id]
 set -u
 A=/var/www/portfolio/apps/algorithms
 find $A -name '*.js' -exec sed -i 's/\r$//' {} +
@@ -74,7 +75,7 @@ FAILED=0
 for d in */; do
   d=${d%/}
   for f in $d/*.cpp; do
-    if g++ -std=c++20 -Wall -Wextra -Werror -O1 -o ${f%.cpp} $f 2> ${f%.cpp}.err; then
+    if g++ -std=c++20 -Wall -Wextra -Werror -O1 -I /var/www/portfolio/server/cc -o ${f%.cpp} $f 2> ${f%.cpp}.err; then
       ./${f%.cpp} > ${f%.cpp}.out 2>&1 || { echo "  RUN FAILED $f"; FAILED=1; }
     else
       echo "  COMPILE FAILED $f"; head -15 ${f%.cpp}.err; FAILED=1
@@ -83,6 +84,29 @@ for d in */; do
   tr=$(cat $d/traced)
   if [ -n "$tr" ] && ! diff -q $d/${tr%.cpp}.out $d/expected.txt > /dev/null 2>&1; then
     echo "  MISMATCH $d/$tr (program < > animation):"; diff $d/${tr%.cpp}.out $d/expected.txt | head -20; FAILED=1
+  fi
+  # live.cpp: the traced listing plus pattrace events. Same printed output,
+  # and the events must convert into valid objects-view frames.
+  if [ -f $d/live.out ]; then
+    if ! grep -av $'^\x1e' $d/live.out | diff -q - $d/expected.txt > /dev/null; then
+      echo "  MISMATCH $d/live.cpp printed output differs from the animation"; FAILED=1
+    fi
+    node --input-type=module -e "
+      import fs from 'fs';
+      import { splitOutput, printedLines, framesFromRun } from '$T/alg/core/live-trace.js';
+      const items = splitOutput(fs.readFileSync('$d/live.out', 'utf8'));
+      const { frames, events, boxes } = framesFromRun(items);
+      let bad = frames.length ? '' : 'no frames';
+      for (const [i, f] of frames.entries()) {
+        const ids = new Set(f.marks.objects.map((o) => o.id));
+        for (const l of f.marks.links) if (!ids.has(l.from) || !ids.has(l.to)) bad = 'frame ' + i + ': dangling link';
+        if (f.marks.msg && (!ids.has(f.marks.msg.from) || !ids.has(f.marks.msg.to))) bad = 'frame ' + i + ': dangling msg';
+      }
+      const printed = frames.flatMap((f) => f.metrics.map((m) => m.value)).join('|');
+      if (printed !== printedLines(items).join('|')) bad = 'printed lines lost between frames';
+      console.log(bad ? '  LIVE FAILED $d: ' + bad : '  $d/live.cpp: ' + events + ' events, ' + boxes + ' boxes, ' + frames.length + ' frames');
+      process.exit(bad ? 1 : 0);
+    " || FAILED=1
   fi
 done
 [ $FAILED = 0 ] && echo "every listing compiles with -Werror and every animation matches its program"
