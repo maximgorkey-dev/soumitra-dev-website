@@ -121,7 +121,7 @@ function beforeScene(edited) {
         lines: ["string text", "size_t cursor", ...(edited ? [add("Range selection")] : [])] },
     ],
     links: [
-      { from: "hist", to: "ed", kind: "calls", label: "reads and writes fields" },
+      { from: "hist", to: "ed", kind: "calls", label: "copies fields" },
       { from: "hist", to: "saved", kind: "owns", label: "stack of" },
     ],
   };

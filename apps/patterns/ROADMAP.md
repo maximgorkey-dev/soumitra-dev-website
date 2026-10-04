@@ -1,10 +1,10 @@
 # Design patterns in C++ — build roadmap
 
-Status (2026-10-04): batches 0–5 shipped, plus promotions — 17 animated
-patterns, 15 one-page notes (built with `note()` in `pat-common.js`; files
-`pat-creational.js`, `pat-structural.js`, `pat-behavioural-notes.js`,
-`pat-modern-notes.js`), and a pattern map (`pat-map.js`, the section's
-landing page) relating them. See Deferred for what's left.
+Status (2026-10-04): batches 0–5 shipped, plus promotions — 22 animated
+patterns, 10 one-page notes (built with `note()` in `pat-common.js`; files
+`pat-creational.js`, `pat-structural.js`, `pat-modern-notes.js`), and a
+clickable pattern map (`pat-map.js`, the section's landing page) relating
+them. See Deferred for what's left.
 
 - Frame fields for both views, and the explanation block format, are
   documented in `apps/algorithms/topics/pat-common.js`.
@@ -112,7 +112,10 @@ Batch 5 list:
 Any batch 5 note can be promoted to an animated topic later. Promoted on
 2026-10-04, each with before/after/run frames and a traced listing: Chain of
 Responsibility, Mediator, Iterator (ring buffer), Memento (editor undo), Proxy
-(lazy gallery) and Flyweight (forest), in `topics/pat-<name>.js`.
+(lazy gallery) and Flyweight (forest), in `topics/pat-<name>.js`. Then
+Template Method (exporters), Adapter (legacy logger), Bridge (shapes ×
+renderers), Builder (HTTP request, with a designated-initialiser
+`modern.cpp`) and Singleton (ending on dependency injection, `injected.cpp`).
 
 The **pattern map** (`topics/pat-map.js`, topic "Start here") is one objects
 diagram of 17 patterns linked by the difference that separates each pair,
@@ -120,7 +123,10 @@ walked through by family: wrappers, swappable behaviour, classic vs modern,
 undo, notification. Its listing binds one Strategy three ways (virtual,
 policy, `std::function`). Box layout is a 4×5 grid with pairs vertical or
 diagonal, because link labels sit beside the line and collide on short
-horizontal links.
+horizontal links. Each box has an `href` (a topic id): `views/objects.js`
+wraps it in an SVG link to `#<id>`, and `app.js` switches topic on
+`hashchange`, so Back returns to the map. Every link on the map has a
+comparison card in the flashcard deck.
 
 ## Deferred
 
@@ -134,6 +140,9 @@ horizontal links.
 - **Quizzes.** Shipped 2026-10-04 as the "Design Patterns in C++" flashcard
   deck (`server/seed/design-patterns.json`): one "which pattern is this?"
   card per pattern, linking back to its walkthrough, plus comparison cards.
+  The server imports a seed file once per user, so cards appended later
+  reach existing decks via `tools/seed-topup.py` (adds missing fronts only;
+  review history is untouched).
 
 ## Token rules for each session
 

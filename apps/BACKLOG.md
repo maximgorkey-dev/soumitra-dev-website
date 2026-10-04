@@ -38,11 +38,14 @@ EDA depth (EDA), or notes polish (NOTES).
 ## Needs you
 
 - [ ] **U-1 — Click through the new private topics (S).** The agent's browser
-  can't sign in. Open `/apps/patterns/` (lands on the new pattern map; also
-  Iterator, Memento, Proxy, Flyweight) and `/apps/algorithms/` (Dynamic
-  programming → Longest common subsequence; Grid search → Shortest path in a
-  maze). Done when each plays end to end and nothing overlaps badly; report
-  any frame that looks wrong. Memento was not screenshot-checked at all.
+  can't sign in. Open `/apps/patterns/` (lands on the new pattern map: click
+  a box, then Back; also Iterator, Memento, Proxy, Flyweight, Template
+  Method, Adapter, Bridge, Builder, Singleton) and `/apps/algorithms/`
+  (Dynamic programming → Longest common subsequence; Grid search → Shortest
+  path in a maze). Flashcards: the patterns deck should show 5 new
+  comparison cards. Done when each plays end to end and nothing overlaps
+  badly; report any frame that looks wrong. Every patterns frame has been
+  checked on the public preview; only the signed-in pages are unchecked.
 
 ---
 
@@ -300,20 +303,10 @@ Detail: `apps/patterns/ROADMAP.md`.
   `new`, a message per call). Start with Strategy and Observer. Done when
   adding a new strategy class in the editor makes a new box appear in the run.
 
-- [ ] **PAT-2 — Promote more notes (S–M each).** 15 patterns are still one
-  page each. Best candidates, in order: Template Method (the varying step
-  lighting up per subclass), Bridge (two hierarchies, the class-count
-  explosion it prevents), Adapter, Builder, Singleton (initialisation order
-  and the test seam it breaks). Copy the shape of `topics/pat-proxy.js`.
-
-- [ ] **PAT-3 — Clickable pattern map (S).** Clicking a box on the map should
-  open that pattern. Needs an optional `href` (topic id) on objects-view boxes
-  and a click handler in `app.js` that calls the existing topic switch.
-
-- [ ] **PAT-4 — Quiz deck for the map's pairs (S).** Add "Decorator or Proxy?",
-  "Strategy or State?", "Command or Memento?" comparison cards to
-  `server/seed/design-patterns.json`, one per link on the map, if not already
-  covered. Reseed without wiping review history.
+- [ ] **PAT-2 — Promote more notes (S–M each).** 10 patterns are still one
+  page each. Next candidates: Factory Method, Facade, Prototype, Abstract
+  Factory, then the Modern C++ notes (PIMPL, NVI) if the memory view suits
+  them. Copy the shape of `topics/pat-proxy.js`.
 
 ---
 
@@ -389,6 +382,9 @@ roughly by how much a reviewer would notice:
 ---
 
 ## Done log
+
+- 2026-10-04 — Patterns: Template Method, Adapter, Bridge, Builder, Singleton animated (PAT-2 first wave).
+- 2026-10-04 — Patterns: clickable pattern map (`5ce87ac`); comparison cards for every map pair, plus `tools/seed-topup.py` (`e1fc344`).
 
 - 2026-10-04 — Patterns: Iterator, Memento, Proxy, Flyweight animated; pattern map added (`8e93a61`).
 - 2026-10-04 — Algorithms: grid renderer, longest common subsequence, maze BFS (`21fc4a7`).
