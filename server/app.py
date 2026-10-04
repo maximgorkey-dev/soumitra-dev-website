@@ -343,13 +343,22 @@ def owned_deck(conn: sqlite3.Connection, owner: str, deck_id: str) -> sqlite3.Ro
     return row
 
 
+# Decks that the original one-shot import ("seeded_v1") already covered.
+LEGACY_SEEDS = {"cpp-core.json", "eda-physical-design.json", "linux-gdb.json"}
+
+
 def ensure_seeded(conn: sqlite3.Connection, owner: str) -> None:
-    """One-time import of the bundled starter decks for a new user."""
-    if conn.execute("SELECT 1 FROM meta WHERE owner = ? AND key = 'seeded_v1'", (owner,)).fetchone():
-        return
+    """Import each bundled starter deck once per user.
+
+    Tracked per file, so a deck added to the seed directory later reaches
+    existing users too, and a deck the user deleted is never brought back.
+    """
+    done = {r["key"] for r in conn.execute("SELECT key FROM meta WHERE owner = ? AND key LIKE 'seed%'", (owner,))}
+    if "seeded_v1" in done:
+        done |= {f"seed:{name}" for name in LEGACY_SEEDS}
     if SEED_DIR.is_dir():
         for path in sorted(SEED_DIR.glob("*.json")):
-            if path.name == "index.json":
+            if path.name == "index.json" or f"seed:{path.name}" in done:
                 continue
             try:
                 data = json.loads(path.read_text(encoding="utf-8"))
@@ -375,9 +384,9 @@ def ensure_seeded(conn: sqlite3.Connection, owner: str) -> None:
                     for i, c in enumerate(cards)
                 ],
             )
-    conn.execute(
-        "INSERT OR REPLACE INTO meta (owner, key, value) VALUES (?, 'seeded_v1', ?)", (owner, now_iso())
-    )
+            conn.execute(
+                "INSERT OR REPLACE INTO meta (owner, key, value) VALUES (?, ?, ?)", (owner, f"seed:{path.name}", now_iso())
+            )
 
 
 # --------------------------------------------------------------------------

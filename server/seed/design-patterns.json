@@ -1,0 +1,206 @@
+{
+  "name": "Design Patterns in C++",
+  "description": "Spot the pattern from the code, and tell the look-alikes apart. Each answer links to its animated walkthrough.",
+  "cards": [
+    {
+      "front": "Which pattern is this?\n\n```cpp\nclass Navigator {\n    std::unique_ptr<RouteAlgo> algo_;\npublic:\n    void setAlgo(std::unique_ptr<RouteAlgo> a) { algo_ = std::move(a); }\n    Route plan(Point a, Point b) { return algo_->route(a, b); }\n};\n```",
+      "back": "**Strategy.** The tell: one interface for *interchangeable algorithms*, held by the context and swappable at run time. The context doesn't know which algorithm it has.\n\n[Walkthrough](/apps/patterns/#pat-strategy)",
+      "tags": ["behavioural"]
+    },
+    {
+      "front": "Which pattern is this?\n\n```cpp\nclass Sensor {\n    std::vector<std::function<void(double)>> subs_;\npublic:\n    void subscribe(std::function<void(double)> f) { subs_.push_back(std::move(f)); }\n    void update(double v) { for (auto& f : subs_) f(v); }\n};\n```",
+      "back": "**Observer.** The tell: a list of callbacks the subject *broadcasts* to when its state changes, without knowing who they are.\n\n[Walkthrough](/apps/patterns/#pat-observer)",
+      "tags": ["behavioural"]
+    },
+    {
+      "front": "Which pattern is this?\n\n```cpp\nstruct Action {\n    virtual ~Action() = default;\n    virtual void apply(Doc&) = 0;\n    virtual void revert(Doc&) = 0;\n};\nstd::vector<std::unique_ptr<Action>> history;\n```",
+      "back": "**Command.** The tell: a request turned into an *object* — here with `revert`, so it can be stored, queued and undone.\n\n[Walkthrough](/apps/patterns/#pat-command)",
+      "tags": ["behavioural"]
+    },
+    {
+      "front": "Which pattern is this?\n\n```cpp\nclass Door {\n    std::unique_ptr<Mode> mode_;\npublic:\n    void push() { mode_ = mode_->onPush(); }   // each mode returns the next\n};\n```",
+      "back": "**State.** The tell: behaviour delegated to an object that represents the *current state*, and the state object decides the transition. (Strategy is chosen from outside; State changes itself.)\n\n[Walkthrough](/apps/patterns/#pat-state)",
+      "tags": ["behavioural"]
+    },
+    {
+      "front": "Which pattern is this?\n\n```cpp\nstruct Node { virtual void accept(Pass&) = 0; };\nstruct Add : Node { void accept(Pass& p) override { p.on(*this); } };\nstruct Mul : Node { void accept(Pass& p) override { p.on(*this); } };\nstruct Pass { virtual void on(Add&) = 0; virtual void on(Mul&) = 0; };\n```",
+      "back": "**Visitor.** The tell: `accept` calling back into an overloaded `on`/`visit` — *double dispatch*, so new operations can be added without touching the node classes.\n\n[Walkthrough](/apps/patterns/#pat-visitor)",
+      "tags": ["behavioural"]
+    },
+    {
+      "front": "Which pattern is this?\n\n```cpp\nclass Report {\npublic:\n    void generate() { header(); body(); footer(); }   // not virtual\nprivate:\n    void header();\n    void footer();\n    virtual void body() = 0;\n};\n```",
+      "back": "**Template Method.** The tell: a non-virtual method fixes the *order of steps* and calls virtual hooks for the parts that vary.\n\n[Walkthrough](/apps/patterns/#pat-template-method)",
+      "tags": ["behavioural"]
+    },
+    {
+      "front": "Which pattern is this?\n\n```cpp\nstruct Lines {\n    struct iterator {\n        const char* p;\n        std::string_view operator*() const;\n        iterator& operator++();\n        bool operator!=(const iterator&) const;\n    };\n    iterator begin() const;\n    iterator end() const;\n};\n```",
+      "back": "**Iterator.** The tell: `begin`/`end` plus an object with `*`, `++` and `!=` — traversal without exposing how the collection is stored. It makes the type work with range-for.\n\n[Walkthrough](/apps/patterns/#pat-iterator)",
+      "tags": ["behavioural"]
+    },
+    {
+      "front": "Which pattern is this?\n\n```cpp\nvoid Middleware::handle(Request& r) {\n    if (!canServe(r)) { next_->handle(r); return; }\n    serve(r);\n}\n```",
+      "back": "**Chain of Responsibility.** The tell: each handler either deals with the request or forwards it to `next_`. The sender doesn't know who will handle it.\n\n[Walkthrough](/apps/patterns/#pat-chain)",
+      "tags": ["behavioural"]
+    },
+    {
+      "front": "Which pattern is this?\n\n```cpp\nclass Tower {\n    std::vector<Plane*> planes_;\npublic:\n    void requestLanding(Plane& p) {\n        for (Plane* q : planes_) if (q != &p) q->hold();\n        p.land();\n    }\n};\n```",
+      "back": "**Mediator.** The tell: peers never talk to each other — a central object holds the interaction *rules* and coordinates them.\n\n[Walkthrough](/apps/patterns/#pat-mediator)",
+      "tags": ["behavioural"]
+    },
+    {
+      "front": "Which pattern is this?\n\n```cpp\nclass Canvas {\npublic:\n    class Snapshot { friend class Canvas; std::vector<Pixel> px_; };\n    Snapshot save() const;\n    void load(const Snapshot&);\n};\n```",
+      "back": "**Memento.** The tell: an *opaque* snapshot only the originator can read (`friend`), handed out and taken back for undo.\n\n[Walkthrough](/apps/patterns/#pat-memento)",
+      "tags": ["behavioural"]
+    },
+    {
+      "front": "Which pattern is this?\n\n```cpp\nclass Compressed : public Stream {\n    std::unique_ptr<Stream> inner_;\npublic:\n    void write(Bytes b) override { inner_->write(compress(b)); }\n};\n// auto s = Compressed(Encrypted(FileStream(path)));\n```",
+      "back": "**Decorator.** The tell: implements the *same interface* it wraps, adds behaviour, and forwards — so wrappers stack.\n\n[Walkthrough](/apps/patterns/#pat-decorator)",
+      "tags": ["structural"]
+    },
+    {
+      "front": "Which pattern is this?\n\n```cpp\nstruct Shape { virtual double area() const = 0; };\nstruct Group : Shape {\n    std::vector<std::unique_ptr<Shape>> kids;\n    double area() const override {\n        double s = 0; for (auto& k : kids) s += k->area(); return s;\n    }\n};\n```",
+      "back": "**Composite.** The tell: a container that *is* the same type as its children, so a tree can be treated like a single item.\n\n[Walkthrough](/apps/patterns/#pat-composite)",
+      "tags": ["structural"]
+    },
+    {
+      "front": "Which pattern is this?\n\n```cpp\nclass CurlHttp : public HttpClient {\n    CURL* h_;\npublic:\n    Response get(const Url& u) override {\n        curl_easy_setopt(h_, CURLOPT_URL, u.c_str());\n        return toResponse(curl_easy_perform(h_));\n    }\n};\n```",
+      "back": "**Adapter.** The tell: implements the interface *your code expects* by translating calls into one that doesn't fit (here a C API).\n\n[Walkthrough](/apps/patterns/#pat-adapter)",
+      "tags": ["structural"]
+    },
+    {
+      "front": "Which pattern is this?\n\n```cpp\nclass Compiler {\n    Lexer lex_; Parser parse_; Optimiser opt_; CodeGen gen_;\npublic:\n    Binary build(const Source& s) {\n        return gen_.emit(opt_.run(parse_.tree(lex_.tokens(s))));\n    }\n};\n```",
+      "back": "**Facade.** The tell: one simple entry point that *orchestrates a whole subsystem* for the common case.\n\n[Walkthrough](/apps/patterns/#pat-facade)",
+      "tags": ["structural"]
+    },
+    {
+      "front": "Which pattern is this?\n\n```cpp\nclass LazyTexture : public Texture {\n    std::string path_;\n    mutable std::unique_ptr<GpuTexture> real_;\npublic:\n    void bind() const override {\n        if (!real_) real_ = load(path_);\n        real_->bind();\n    }\n};\n```",
+      "back": "**Proxy** (virtual proxy). The tell: same interface as the real object, and it *controls access* — here, creating it lazily on first use.\n\n[Walkthrough](/apps/patterns/#pat-proxy)",
+      "tags": ["structural"]
+    },
+    {
+      "front": "Which pattern is this?\n\n```cpp\nclass Message {\nprotected:\n    Transport& t_;      // Email, Sms, Push ...\npublic:\n    explicit Message(Transport& t) : t_(t) {}\n    virtual void send() = 0;  // Alert, Reminder, Receipt ...\n};\n```",
+      "back": "**Bridge.** The tell: *two hierarchies* — what it is (Message kinds) and how it's done (Transports) — joined by a reference, so m + n classes cover every combination.\n\n[Walkthrough](/apps/patterns/#pat-bridge)",
+      "tags": ["structural"]
+    },
+    {
+      "front": "Which pattern is this?\n\n```cpp\nstruct Glyph { Bitmap shape; Metrics m; };          // big, immutable\nstruct PlacedChar { int x, y; const Glyph* g; };     // small, many\nstd::unordered_map<char32_t, Glyph> cache;\n```",
+      "back": "**Flyweight.** The tell: heavy *shared immutable* state kept once, and very many small objects pointing at it.\n\n[Walkthrough](/apps/patterns/#pat-flyweight)",
+      "tags": ["structural"]
+    },
+    {
+      "front": "Which pattern is this?\n\n```cpp\nclass Plugin {\npublic:\n    void run() { auto w = makeWorker(); w->start(); }\nprotected:\n    virtual std::unique_ptr<Worker> makeWorker() = 0;\n};\n```",
+      "back": "**Factory Method.** The tell: a base class calls a *virtual creation function* that subclasses override to pick the concrete product.\n\n[Walkthrough](/apps/patterns/#pat-factory-method)",
+      "tags": ["creational"]
+    },
+    {
+      "front": "Which pattern is this?\n\n```cpp\nstruct Storage {\n    virtual std::unique_ptr<Blob>  blob()  = 0;\n    virtual std::unique_ptr<Queue> queue() = 0;\n    virtual std::unique_ptr<Table> table() = 0;\n};\nstruct AwsStorage : Storage { /* ... */ };\nstruct GcpStorage : Storage { /* ... */ };\n```",
+      "back": "**Abstract Factory.** The tell: one interface creating a *family* of related products, so they're guaranteed to match (all AWS or all GCP).\n\n[Walkthrough](/apps/patterns/#pat-abstract-factory)",
+      "tags": ["creational"]
+    },
+    {
+      "front": "Which pattern is this?\n\n```cpp\nauto q = Query::from(users)\n             .where(age > 30)\n             .orderBy(name)\n             .limit(10)\n             .build();\n```",
+      "back": "**Builder.** The tell: an object assembled step by step through chained calls, with a final `build()` that produces the finished — often immutable — result.\n\n[Walkthrough](/apps/patterns/#pat-builder)",
+      "tags": ["creational"]
+    },
+    {
+      "front": "Which pattern is this?\n\n```cpp\nstruct Enemy {\n    virtual ~Enemy() = default;\n    virtual std::unique_ptr<Enemy> clone() const = 0;\n};\nauto wave = spawnTemplate->clone();\n```",
+      "back": "**Prototype.** The tell: a virtual `clone()` — copy an object through a base pointer without knowing its concrete type.\n\n[Walkthrough](/apps/patterns/#pat-prototype)",
+      "tags": ["creational"]
+    },
+    {
+      "front": "Which pattern is this — and what's the catch?\n\n```cpp\nLogger& Logger::get() {\n    static Logger instance;\n    return instance;\n}\n```",
+      "back": "**Singleton** (Meyers singleton; thread-safe initialisation since C++11). The catch: it's *global state* — hidden dependencies, hard to test, unclear destruction order. Prefer passing the dependency in.\n\n[Walkthrough](/apps/patterns/#pat-singleton)",
+      "tags": ["creational"]
+    },
+    {
+      "front": "Which idiom is this?\n\n```cpp\nclass File {\n    std::FILE* f_;\npublic:\n    explicit File(const char* p) : f_(std::fopen(p, \"r\")) { if (!f_) throw IoError{}; }\n    ~File() { std::fclose(f_); }\n    File(const File&) = delete;\n    File& operator=(const File&) = delete;\n};\n```",
+      "back": "**RAII.** The tell: the constructor *acquires*, the destructor *releases*, copying is controlled — the resource's lifetime is the object's scope, even when exceptions are thrown.\n\n[Walkthrough](/apps/patterns/#pat-raii)",
+      "tags": ["modern"]
+    },
+    {
+      "front": "Which idiom is this?\n\n```cpp\ntemplate <class D>\nstruct Shape {\n    double area() const { return static_cast<const D&>(*this).areaImpl(); }\n};\nstruct Square : Shape<Square> { double areaImpl() const; };\n```",
+      "back": "**CRTP** (curiously recurring template pattern). The tell: a class passes *itself* as the base's template argument, and the base `static_cast`s to it — static polymorphism with no vtable.\n\n[Walkthrough](/apps/patterns/#pat-crtp)",
+      "tags": ["modern"]
+    },
+    {
+      "front": "Which idiom is this?\n\n```cpp\nclass AnyDrawable {\n    struct Concept { virtual ~Concept() = default; virtual void draw() const = 0; };\n    template <class T> struct Model : Concept { T t; void draw() const override { t.draw(); } };\n    std::unique_ptr<Concept> p_;\npublic:\n    template <class T> AnyDrawable(T t) : p_(new Model<T>{{}, std::move(t)}) {}\n};\n```",
+      "back": "**Type erasure.** The tell: an internal Concept/Model pair behind a value type — any type with `draw()` fits, *no common base class needed*. Same shape as `std::function` and `std::any`.\n\n[Walkthrough](/apps/patterns/#pat-type-erasure)",
+      "tags": ["modern"]
+    },
+    {
+      "front": "Which idiom is this?\n\n```cpp\nusing Event = std::variant<Click, Key, Resize>;\nstd::visit(overloaded{\n    [](const Click& c)  { /* ... */ },\n    [](const Key& k)    { /* ... */ },\n    [](const Resize& r) { /* ... */ },\n}, ev);\n```",
+      "back": "**std::variant + std::visit** (a closed set of types). The tell: a fixed list of alternatives stored by value, with every case handled — the compiler errors if one is missing. Visitor without the class hierarchy.\n\n[Walkthrough](/apps/patterns/#pat-variant)",
+      "tags": ["modern"]
+    },
+    {
+      "front": "Which idiom is this?\n\n```cpp\n// engine.h\nclass Engine {\npublic:\n    Engine(); ~Engine();\n    void tick();\nprivate:\n    struct Impl;\n    std::unique_ptr<Impl> p_;\n};\n```",
+      "back": "**PIMPL** (pointer to implementation). The tell: a forward-declared `Impl` behind a `unique_ptr`, so private members live in the .cpp — faster builds and a stable ABI. The destructor must be defined in the .cpp.\n\n[Walkthrough](/apps/patterns/#pat-pimpl)",
+      "tags": ["modern"]
+    },
+    {
+      "front": "Which idiom is this?\n\n```cpp\nclass Cache {\npublic:\n    Value get(const Key& k) { std::lock_guard g(m_); ++hits_; return doGet(k); }\nprivate:\n    virtual Value doGet(const Key& k) = 0;\n    std::mutex m_; long hits_ = 0;\n};\n```",
+      "back": "**NVI** (non-virtual interface). The tell: the public function is *non-virtual* and wraps a *private virtual*, so the base can enforce locking and bookkeeping around every override.\n\n[Walkthrough](/apps/patterns/#pat-nvi)",
+      "tags": ["modern"]
+    },
+    {
+      "front": "Which rule does this class follow, and what does it get for free?\n\n```cpp\nstruct Order {\n    std::string id;\n    std::vector<Item> items;\n    std::unique_ptr<Note> note;\n};\n```",
+      "back": "**Rule of zero.** Every member manages itself, so no destructor, copy or move functions are written — the compiler generates correct ones. Here `unique_ptr` makes `Order` move-only automatically.\n\n[Walkthrough](/apps/patterns/#pat-rule-of-zero)",
+      "tags": ["modern"]
+    },
+    {
+      "front": "Which design is this?\n\n```cpp\ntemplate <class Lock, class Eviction>\nclass Cache {\n    Lock lock_;\n    Eviction evict_;\n    /* ... */\n};\nCache<NoLock, Lru> local;\nCache<std::mutex, Fifo> shared;\n```",
+      "back": "**Policy-based design.** The tell: behaviours chosen as *template parameters*, combined at compile time with zero run-time cost — Strategy, resolved by the compiler. Like `std::vector<T, Allocator>`.\n\n[Walkthrough](/apps/patterns/#pat-policy)",
+      "tags": ["modern"]
+    },
+    {
+      "front": "What is this style called, and when does the work actually happen?\n\n```cpp\nauto names = people\n    | std::views::filter([](const P& p) { return p.active; })\n    | std::views::transform(&P::name)\n    | std::views::take(5);\n```",
+      "back": "**Ranges pipeline.** Views are *lazy*: building the pipeline does nothing, and each element flows through all the steps only when something iterates it. No intermediate containers.\n\n[Walkthrough](/apps/patterns/#pat-ranges)",
+      "tags": ["modern"]
+    },
+    {
+      "front": "What does this give you over a plain `template <class T>`?\n\n```cpp\ntemplate <class T>\nconcept Hashable = requires(const T& x) {\n    { std::hash<T>{}(x) } -> std::convertible_to<std::size_t>;\n};\nvoid index(const Hashable auto& x);\n```",
+      "back": "**Concepts.** The requirement is *named and checked at the call site*: a bad argument gets a short error naming the unmet requirement, not pages from inside the template. Satisfied structurally — no inheritance.\n\n[Walkthrough](/apps/patterns/#pat-concepts)",
+      "tags": ["modern"]
+    },
+    {
+      "front": "Decorator, Proxy and Adapter all wrap an object. How do you tell them apart?",
+      "back": "- **Adapter** *changes* the interface, to fit code that expects a different one.\n- **Decorator** keeps the interface and *adds behaviour*; wrappers stack.\n- **Proxy** keeps the interface and *controls access* (lazy, remote, permissions, caching).",
+      "tags": ["compare"]
+    },
+    {
+      "front": "Strategy vs. State — the code looks identical. What's the difference?",
+      "back": "Who chooses. With **Strategy** the *client* picks the algorithm and it rarely changes by itself. With **State** the *state objects* trigger transitions to each other as events arrive.",
+      "tags": ["compare"]
+    },
+    {
+      "front": "Strategy vs. Template Method?",
+      "back": "Both vary part of an algorithm. **Template Method** uses *inheritance* — fixed per subclass at compile time. **Strategy** uses *composition* — swappable at run time, and testable in isolation. Modern C++ often makes the strategy a lambda or a template parameter.",
+      "tags": ["compare"]
+    },
+    {
+      "front": "Visitor vs. std::variant + std::visit — when do you pick each?",
+      "back": "**std::variant** when the set of types is *closed* and small: value semantics, no heap, and the compiler checks every case. **Visitor** over a class hierarchy when types are open-ended or already polymorphic, at the cost of `accept` boilerplate in every class.",
+      "tags": ["compare"]
+    },
+    {
+      "front": "Virtual functions, CRTP, type erasure, concepts: which is run-time and which is compile-time polymorphism?",
+      "back": "- **Run time:** virtual functions; type erasure (a vtable hidden behind a value type).\n- **Compile time:** CRTP, policies, concepts — no indirection, but every combination is a separate type and they can't share one container without erasure.",
+      "tags": ["compare"]
+    },
+    {
+      "front": "Observer vs. Mediator?",
+      "back": "**Observer** is one-to-many *broadcast*: the subject doesn't care who listens or what they do. **Mediator** is many-to-many *coordination*: a hub that knows the rules of who reacts to what. Mediators are often built from observer-style callbacks.",
+      "tags": ["compare"]
+    },
+    {
+      "front": "Factory Method vs. Abstract Factory?",
+      "back": "**Factory Method** is *one* virtual creation hook that a subclass overrides. **Abstract Factory** is an *object* with several creation methods producing a matching family. An abstract factory is often a bundle of factory methods.",
+      "tags": ["compare"]
+    },
+    {
+      "front": "Undo: Command or Memento?",
+      "back": "**Command** stores *operations* with an inverse — small, but each needs a correct `undo()`. **Memento** stores *state snapshots* — always correct, but can be large. Editors often combine them: commands for most edits, snapshots at checkpoints.",
+      "tags": ["compare"]
+    }
+  ]
+}
