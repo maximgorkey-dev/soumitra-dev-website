@@ -47,11 +47,11 @@ then refined from LeetCode's public problem list when this is built:
 | 3000–3400 | 2024 |
 | 3400+ | 2025–26 |
 
-> **Gap to know about:** this draft is weighted towards older problems,
-> because that is where my knowledge is solid. A "last two years" filter (from
-> Nov 2024, so roughly 3350+) would match almost nothing below. Recent problems
-> need adding in a separate pass, from LeetCode's public list, sorted by
-> number.
+> **Recent problems** (3000+) are in section Z. They were picked from a saved
+> list of 446 recent medium and hard problems. Z1 holds problems whose
+> solution I know. Z2 holds newer ones placed from their title only, which
+> need their statement read before they are final. Problems below 3000 come
+> from the main sections.
 
 **Per-problem page** (from the earlier discussion):
 
@@ -904,6 +904,231 @@ limit, the fork-bomb guard. Plan that change with the first concurrency page.
 
 ---
 
+## Z. Recent problems (3000+)
+
+Grouped by home pattern. When this is built, each entry moves into its
+pattern's ladder; it stays separate here so the pass is easy to review.
+
+### Z1. Placed, with the mechanism known
+
+**Arrays and windows**
+
+- A1 prefix sums: 3026 Maximum Good Subarray Sum (M), which keeps the minimum
+  prefix per value; 3381 Maximum Subarray Sum With Length Divisible by K (M),
+  which keeps the minimum prefix per residue.
+- A8 parity states: 3445 Maximum Difference Between Even and Odd Frequency II
+  (H). Prefix counts for each character pair, keyed by parity state.
+- A4 windows: 3306 Count of Substrings Containing Every Vowel and K
+  Consonants II (M), using "exactly K" = at most K − at most K−1; 3413 Maximum
+  Coins From K Consecutive Bags (M), where the window is anchored at interval
+  ends and run in both directions; 3439 and 3440 Reschedule Meetings for
+  Maximum Free Time I and II (M), a window over gaps, with prefix and suffix
+  maximum gaps for II.
+- A7 bitwise windows: 3097 Shortest Subarray With OR at Least K II (M), a
+  window with per-bit counts; 3117 Minimum Sum of Values by Dividing Array
+  (H) `[stretch]`, a DP over (index, piece, running AND), where only a few
+  distinct ANDs occur.
+- A6 circular: 3208 Alternating Groups II (M), a window over the doubled
+  array (also theme Y4).
+
+**Binary search**
+
+- B1 on the answer:
+  - 3296 Minimum Number of Seconds to Make Mountain Height Zero (M), using
+    triangular numbers.
+  - 3356 Zero Array Transformation II (M), binary search on k plus a
+    difference array.
+  - 3007 Maximum Number That Sum of the Prices Is Less Than or Equal to K
+    (M), binary search plus counting set bits per position (links F12).
+  - 3464 Maximize the Distance Between Points on a Square (H), which unfolds
+    the perimeter onto a line and then searches with a greedy check.
+  - 3049 Earliest Second to Mark Indices II (H) `[stretch]`, binary search
+    with a greedy check that uses a heap.
+- B2 on the value: 3116 Kth Smallest Amount With Single Denomination
+  Combination (H), binary search plus inclusion–exclusion over the lcms of
+  subsets (links O2).
+
+**Lemmas and greedy**
+
+- C2 reframing: 3068 Find the Maximum Sum of Node Values (H). The operation
+  on edges lets you toggle any even-sized set of nodes, so the tree doesn't
+  matter. 3021 Alice and Bob Playing Flower Game (M) reduces to counting odd
+  sums.
+- C5 exchange argument: 3219 Minimum Cost for Cutting Cake II (H). Take cuts
+  in descending cost; each cut costs its price times the pieces it crosses.
+- D2 greedy with a heap: 3362 Zero Array Transformation III (M). Sweep the
+  starts, keep the available intervals in a max-heap by end, and use one
+  only when needed.
+- Greedy on differences: 3229 Minimum Operations to Make Array Equal to
+  Target (H), which sums the rises in the difference array.
+
+**Sweeps, heaps and ordered sets**
+
+- E1 sweep and difference arrays: 3224 Minimum Array Changes to Make
+  Differences Equal (M), with a difference array over the candidate X; 3347
+  Maximum Frequency of an Element After Performing Operations II (H), a sweep
+  over candidate values; 3394 Check if Grid can be Cut into Sections (M),
+  merging intervals per axis.
+- E2 sliding two multisets: 3013 Divide an Array Into Subarrays With Minimum
+  Cost II (H), the sum of the k−1 smallest in a sliding window; 3321 Find
+  X-Sum of All K-Long Subarrays II (H), the top x by frequency in a sliding
+  window.
+- E3 ordered set: 3244 Shortest Distance After Road Addition Queries II (H).
+  The roads never cross, so erase the nodes each road skips.
+
+**Dynamic programming**
+
+- F1 state machine:
+  - 3129 and 3130 Find All Possible Stable Binary Arrays I and II (M, H),
+    states limited by run length, with a subtraction trick.
+  - 3122 Minimum Number of Operations to Satisfy Conditions (M), a DP over
+    columns with the colour as the state.
+  - 3165 Maximum Sum of Subsequence With Non-adjacent Elements (H): house
+    robber under point updates, using a segment tree that stores a 2×2
+    state per node. This is a new pattern, I2 below.
+- F4 interval: 3472 Longest Palindromic Subsequence After at Most K
+  Operations (M), which is 516 with a budget dimension.
+- F5 counting: 3082 Find the Sum of the Power of All Subsequences (H), a
+  knapsack where each count is weighted by 2^(elements left out); 3333 Find
+  the Original Typed String II (H), complement counting with a prefix-sum DP.
+- F6 trees: 3203 Find Minimum Diameter After Merging Two Trees (H). The
+  answer is max(d₁, d₂, ⌈d₁/2⌉ + ⌈d₂/2⌉ + 1), and it reuses the app's
+  tree-diameter topic.
+- F7 the LIS family: 3288 Length of the Longest Increasing Path (H), a 2D LIS
+  through a fixed point, sorted by x ascending and y descending; 3414 Maximum
+  Score of Non-overlapping Intervals (H), which is 1235 with at most four
+  picks and a lexicographic tie-break.
+- F8 grid: 3363 Find the Maximum Number of Fruits Collected (H). One child is
+  forced along the diagonal, and the other two are independent DPs.
+- F9 keyed by residue: 3202 Find the Maximum Length of Valid Subsequence II
+  (M), with dp[last residue][residue of pair sum].
+- F11 bitmask: 3149 Find the Minimum Cost Array Permutation (H), a cyclic
+  TSP: fix the start at 0, then rebuild the lexicographically smallest
+  answer.
+
+**Graphs**
+
+- G2 modified Dijkstra: 3112 Minimum Time to Visit Disappearing Nodes (M),
+  with deadlines; 3419 Minimize the Maximum Edge Weight of Graph (M), which
+  reverses the edges, and the threshold turns out not to matter.
+- G4 union-find:
+  - 3108 Minimum Cost Walk in Weighted Graph (H): walks may repeat edges, so
+    the answer is the AND over the whole component.
+  - 3235 Check if the Rectangle Corner Is Reachable (H): union the circles
+    that touch, then ask whether a group joins two blocking sides. Also
+    geometry.
+- Two-colouring by parity: 3373 Maximize the Number of Target Nodes After
+  Connecting Trees II (H). An even distance means the same colour, so count
+  colours. This reuses the app's bipartite-check topic.
+
+**Strings and tries**
+
+- J1 tries: 3045 Count Prefix and Suffix Pairs II (H), a trie keyed by the
+  pair (s[i], s[n−1−i]); 3093 Longest Common Suffix Queries (H), a trie over
+  reversed words that stores the best index at each node.
+- K5 matching:
+  - 3023 Find Pattern in Infinite Stream I (M), KMP over a stream, which is
+    the L6 follow-up shape.
+  - 3303 Find the Occurrence of First Almost Equal Substring (H), the
+    Z-function from both ends to allow one mismatch.
+  - 3327 Check if DFS Strings Are Palindromes (H), a post-order string plus a
+    palindrome check per subtree range.
+
+**Design**
+
+- L, design: 3408 Design Task Manager (M), a heap with lazy deletion; 3369
+  Design an Array Statistics Tracker (H), the mean, the median (two heaps
+  with lazy deletion) and the mode.
+
+**Geometry**
+
+- M6, new pattern: rotating Manhattan into Chebyshev distance `[core]`. Map
+  (x, y) → (x + y, x − y), and the Manhattan distance becomes the larger of
+  the two coordinate differences.
+  - 3102 Minimize Manhattan Distances (H)\*: the maximum distance is the
+    largest range of either coordinate, so try removing each extreme point.
+- M2 rectangles: 3453 and 3454 Separate Squares I and II (M, H), binary
+  search on the dividing line, with II needing union area by sweep as in 850.
+- M1 sorting points: 3027 Find the Number of Ways to Place People II (H),
+  sorted by x ascending and y descending, then scanned.
+
+**Number theory and bits**
+
+- O3, widened to fast exponentiation including matrices: 3337 Total
+  Characters in String After Transformations II (H), a 26×26 matrix power.
+  935 Knight Dialer also gains a matrix-power follow-up.
+- O2 gcd: 3312 Sorted GCD Pair Queries (H). Count pairs whose gcd is exactly
+  g by subtracting the counts for multiples of g, then binary search each
+  query in the prefix sums.
+- O4 combinatorics: 3405 Count the Number of Arrays with K Matching Adjacent
+  Elements (H), which is C(n−1, k) · m · (m−1)^(n−1−k); 3272 Find the Count of
+  Good Integers (H), which enumerates palindromes, removes duplicates by
+  digit multiset, and counts permutations without a leading zero.
+- Q2 bits: 3133 Minimum Array End (M), which spreads the bits of n−1 into
+  the zero bits of x; 3307 Find the K-th Character in String Game II (H),
+  which reads the bits of k−1 against the operations.
+
+**I2, new pattern: a segment tree storing DP states** `[stretch]`
+
+- Insight: when a DP has to survive point updates, store a small matrix
+  combining the states at each node, and merge children like matrix
+  multiplication.
+- Problems: 3165\* (see F1 above).
+
+### Z2. Placed from the title only: read each statement before finalising
+
+These are the newest problems in the list, and I don't know their solutions
+yet. The placement is what the title suggests.
+
+- F1 state machine, stocks: 3573 Best Time to Buy and Sell Stock V (M), which
+  probably adds short selling as a third state; 3652 Best Time to Buy and
+  Sell Stock using Strategy (M); 3640 Trionic Array II (H), probably three
+  phases (up, down, up); 3699 and 3700 Number of ZigZag Arrays I and II (H),
+  alternating DP, with II perhaps needing a matrix power.
+- C1 median ladder: 3585 Find Weighted Median Node in Tree (H), a weighted
+  median along a tree path, probably with binary lifting.
+- Q3, a possible new pattern, the linear XOR basis: 3681 Maximum XOR of
+  Subsequences (H).
+- A1 balanced as a prefix difference: 3713 and 3714 Longest Balanced
+  Substring I and II (M); 3719 and 3721 Longest Balanced Subarray I and II
+  (M, H).
+- Majority via ±1 prefix sums: 3737 and 3739 Count Subarrays With Majority
+  Element I and II (M, H).
+- F12 digit DP: 3751 and 3753 Total Waviness of Numbers in Range I and II (M,
+  H); 3490 Count Beautiful Numbers (H).
+- K1 parsing: 3749 Evaluate Valid Expressions (H).
+- L design: 3484 Design Spreadsheet (M); 3508 Implement Router (M); 3815
+  Design Auction System (M); 3822 Design Order Management System (M); 3829
+  Design Ride Sharing System (M); 3885 Design Event Manager (M).
+- G2 Dijkstra variants: 3650 Minimum Cost Path with Edge Reversals (M); 3651
+  Minimum Cost Path with Teleportations (H); 3924 Minimum Threshold Path With
+  Limited Heavy Edges (H).
+- G4 union-find and X3 reverse: 3607 Power Grid Maintenance (M); 3608 Minimum
+  Time for K Connected Components (M); 3600 Maximize Spanning Tree Stability
+  with Upgrades (H).
+- H4 binary lifting: 3532 and 3534 Path Existence Queries in a Graph I and II
+  (M, H).
+- Cycle decomposition of a permutation: 3551 Minimum Swaps to Sort by Digit
+  Sum (M); 3942 Minimum Operations to Sort a Permutation (M).
+- A2 monotonic stack: 3542 Minimum Operations to Convert All Elements to Zero
+  (M); 3676 Count Bowl Subarrays (M).
+- A3 deque plus DP: 3578 Count Partitions With Max-Min Difference at Most K
+  (M).
+- Y6 jump game: 3660 Jump Game IX (M); 3629 Minimum Jumps to Reach End via
+  Prime Teleportation (M).
+- U4 constructive kth: 3821 Find Nth Smallest Integer With K One Bits (H).
+- M geometry counting: 3623 and 3625 Count Number of Trapezoids I and II (M,
+  H).
+- E intervals: 4057 Number of Intersecting Interval Pairs II (M); 4086
+  Minimum Interval Selection to Cover Target Intervals (H).
+- R scheduling and simulation: 4023 Elevator Requests II (H); 3494 Find the
+  Minimum Amount of Time to Brew Potions (M); 3510 Minimum Pair Removal to
+  Sort Array II (H), probably a linked list plus a heap.
+- J2 XOR trie: 3845 Maximum Subarray XOR with Bounded Range (H).
+- Tree XOR masks: 3841 Palindromic Path Queries in a Tree (H).
+
+---
+
 ## Y. Themes
 
 Each theme page groups its members by mechanism. The signal says which
@@ -1085,3 +1310,7 @@ mechanism applies.
 
 24 technique families, 96 patterns, 22 themes, and about 400 problems, 23 of
 them Premium. 57 patterns are core: that is the default view in the app.
+Section Z adds about 60 recent problems placed with their mechanism, and about
+50 placed from their title only. It also proposes three new patterns: I2
+(DP states in a segment tree), M6 (Manhattan to Chebyshev) and possibly Q3
+(the linear XOR basis).
