@@ -74,6 +74,8 @@ import { ranges } from "../topics/pat-ranges.js";
 import { concepts } from "../topics/pat-concepts.js";
 
 import { lc84 } from "../topics/lc-84.js";
+import { lc312 } from "../topics/lc-312.js";
+import { lc4 } from "../topics/lc-4.js";
 
 export const ALGORITHMS = [
   bfs, dfs,
@@ -98,7 +100,7 @@ export const ALGORITHMS = [
   pimpl, nvi, ruleOfZero, policy, ranges, concepts,
   factoryMethod, abstractFactory, builder, prototype, singleton,
 
-  lc84,
+  lc84, lc4, lc312,
 ];
 
 /* Kruskal rather than the first entry: it is the most complete treatment here,

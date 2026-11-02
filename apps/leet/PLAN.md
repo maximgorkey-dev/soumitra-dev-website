@@ -34,8 +34,8 @@ half-built.
 
 1. [x] Engine hooks, the leet page, the harness, and 84 Largest Rectangle in
    Histogram.
-2. [ ] 312 Burst Balloons (grid view, interval DP).
-3. [ ] 4 Median of Two Sorted Arrays (sequence view, partition search).
+2. [x] 312 Burst Balloons (grid view, interval DP).
+3. [x] 4 Median of Two Sorted Arrays (sequence view, partition search).
 4. [ ] The catalogue browser: every problem in `CATALOG.md` as data
    (`apps/leet/catalog-data.js`), with filters for technique or theme, tier
    (with your override), difficulty and release year, and an "Open on
