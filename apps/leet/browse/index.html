@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>All problems — Interview Problems — soumitra.dev</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/shared.css" />
+  <link rel="stylesheet" href="/apps/algorithms/styles.css" />
+  <link rel="stylesheet" href="/apps/leet/styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header-inner alg-header">
+      <a class="app-brand" href="/apps/">
+        <span class="app-brand-mark">SM</span>
+        <span>soumitra.dev</span>
+      </a>
+      <span class="alg-chip">Interview Problems</span>
+      <div class="app-user">
+        <a class="app-btn app-btn-ghost app-btn-sm" href="/apps/leet/">Walkthroughs</a>
+        <a class="app-btn app-btn-ghost app-btn-sm" href="/apps/">All apps</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="lb-shell">
+    <h1 class="alg-title">All problems</h1>
+    <p class="alg-blurb" id="lb-summary"></p>
+
+    <section class="lb-filters" aria-label="Filters">
+      <div class="lb-row">
+        <span class="lb-label">View</span>
+        <div class="leet-switch" id="f-view">
+          <button type="button" data-v="tech">Techniques</button>
+          <button type="button" data-v="theme">Themes</button>
+        </div>
+        <span class="lb-label">Sort</span>
+        <div class="leet-switch" id="f-sort">
+          <button type="button" data-v="ladder">Ladder order</button>
+          <button type="button" data-v="new">Newest first</button>
+        </div>
+      </div>
+      <div class="lb-row">
+        <span class="lb-label">Tier</span>
+        <div class="lb-chips" id="f-tier"></div>
+        <span class="lb-label">Difficulty</span>
+        <div class="lb-chips" id="f-diff"></div>
+        <span class="lb-label">Released</span>
+        <select class="app-select app-select-sm" id="f-year">
+          <option value="0">any year</option>
+          <option value="2023">2023 or later</option>
+          <option value="2024">2024 or later</option>
+          <option value="2025">2025 or later</option>
+        </select>
+      </div>
+      <div class="lb-row">
+        <input class="app-input lb-search" id="f-q" type="search" placeholder="Number, title or pattern (e.g. 84, rectangle, A2)" />
+        <label class="lb-check"><input type="checkbox" id="f-done" /> hide the ones I've done</label>
+        <label class="lb-check"><input type="checkbox" id="f-built" /> only problems with a walkthrough</label>
+      </div>
+    </section>
+
+    <div id="lb-list"></div>
+  </main>
+
+  <script type="module" src="/apps/leet/browse/browse.js"></script>
+</body>
+</html>

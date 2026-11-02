@@ -873,6 +873,37 @@ limit, the fork-bomb guard. Plan that change with the first concurrency page.
   Blocking Queue (M, P); 1242 Web Crawler Multithreaded (M, P).
 - Follow-up links: make 146 (LRU) and 981 thread-safe.
 
+## DS. Data-structure design `[core]`
+
+Google asks these often: the skill is choosing which structures to compose so
+every operation hits its bound, then keeping them consistent.
+
+**DS1. A hash map over a linked list** `[core]`
+
+- Insight: the list keeps order (recency, frequency buckets); the map jumps
+  straight to a node, so every operation is O(1).
+- Signal: "in O(1)", evict the least recently or least frequently used.
+- Problems: 146 LRU Cache (M)\*; 460 LFU Cache (H); 432 All O`one Data
+  Structure (H); 895 Maximum Frequency Stack (H); 716 Max Stack (H, P).
+
+**DS2. Heaps with lazy deletion, or ordered sets, behind an API** `[core]`
+
+- Insight: an update leaves a stale heap entry; skip it when it surfaces
+  instead of deleting it. An ordered set does the same eagerly in O(log n).
+- Signal: "the highest-rated", "the cheapest", with changes to existing items.
+- Problems: 2353 Design a Food Rating System (M)\*; 2034 Stock Price
+  Fluctuation (M); 2349 Design a Number Container System (M); 1912 Design
+  Movie Rental System (H); 1172 Dinner Plate Stacks (H).
+
+**DS3. Versioned and hierarchical stores** `[stretch]`
+
+- Insight: keep each key's history sorted by time and binary search it; for
+  paths, a trie of directories.
+- Signal: "at timestamp t", "snapshot", file paths.
+- Problems: 981 Time Based Key-Value Store (M)\*; 1146 Snapshot Array (M);
+  1396 Design Underground System (M); 588 Design In-Memory File System (H,
+  P); 2502 Design Memory Allocator (M).
+
 ## X. Techniques that cut across families
 
 **X1. Contribution counting** `[core]`
@@ -1032,7 +1063,7 @@ pattern's ladder; it stays separate here so the pass is easy to review.
   - 3235 Check if the Rectangle Corner Is Reachable (H): union the circles
     that touch, then ask whether a group joins two blocking sides. Also
     geometry.
-- Two-colouring by parity: 3373 Maximize the Number of Target Nodes After
+- H3, two-colouring by parity: 3373 Maximize the Number of Target Nodes After
   Connecting Trees II (H). An even distance means the same colour, so count
   colours. This reuses the app's bipartite-check topic.
 
@@ -1051,7 +1082,7 @@ pattern's ladder; it stays separate here so the pass is easy to review.
 
 **Design**
 
-- L, design: 3408 Design Task Manager (M), a heap with lazy deletion; 3369
+- DS2 design: 3408 Design Task Manager (M), a heap with lazy deletion; 3369
   Design an Array Statistics Tracker (H), the mean, the median (two heaps
   with lazy deletion) and the mode.
 
@@ -1108,13 +1139,14 @@ dropped when its limits allow brute force.
   sums. II has n up to 10⁹ but at most 75 values, so the same transition
   becomes a matrix power. This is a good pair for "when n is huge but the
   state is small".
-- A false friend for the stock theme: 3652 Best Time to Buy and Sell Stock
-  using Strategy (M) is a fixed window over prefix sums, not a state machine.
+- A1, a false friend for the stock theme: 3652 Best Time to Buy and Sell
+  Stock using Strategy (M) is a fixed window over prefix sums, not a state
+  machine.
 
 **Arrays, stacks and windows**
 
-- A1 prefix-difference hashing: 3714 Longest Balanced Substring II (H, with
-  letters a, b, c). Split into cases: one letter, two letters (reset at the
+- A1 prefix-difference hashing: 3714 Longest Balanced Substring II (H), with
+  letters a, b, c only. Split into cases: one letter, two letters (reset at the
   third), or all three, keyed by (b − a, c − a).
 - A1 with ±1 prefix sums: 3739 Count Subarrays With Majority Element II (H).
   Map the target to +1 and everything else to −1, then count earlier prefixes
@@ -1138,11 +1170,12 @@ dropped when its limits allow brute force.
 - C7, new pattern, permutation cycles `[core]`. The minimum number of swaps
   to sort is n minus the number of cycles.
   - 3551 Minimum Swaps to Sort by Digit Sum (M)\*.
-- Y6 jump game: 3660 Jump Game IX (M). Adjacent indices join one reachable
-  group when the prefix maximum before a split exceeds the suffix minimum
-  after it, so sweep from the right. 3629 Minimum Jumps to Reach End via
-  Prime Teleportation (M) is BFS with a sieve, using each prime's teleport
-  group once, like 1345.
+- C2 reframing (theme Y6): 3660 Jump Game IX (M). Adjacent indices join one
+  reachable group when the prefix maximum before a split exceeds the suffix
+  minimum after it, so sweep from the right.
+- G1 BFS (theme Y6): 3629 Minimum Jumps to Reach End via Prime
+  Teleportation (M), BFS with a sieve, using each prime's teleport group
+  once, like 1345.
 
 **Graphs**
 
@@ -1199,7 +1232,7 @@ dropped when its limits allow brute force.
   (M). Count the pairs that don't intersect using sorted starts and ends.
 - F4 interval DP on a line: 4023 Elevator Requests II (H). Sort the
   requests; the state is the visited range plus which end you are at.
-- R pipeline timing: 3494 Find the Minimum Amount of Time to Brew Potions (M)
+- R1 pipeline timing: 3494 Find the Minimum Amount of Time to Brew Potions (M)
   `[stretch]`. Each potion's start is pushed by the tightest wizard, found
   with prefix sums of skill.
 - T1 plus a heap: 3510 Minimum Pair Removal to Sort Array II (H). Simulate
@@ -1208,7 +1241,7 @@ dropped when its limits allow brute force.
 
 **Design**
 
-- L design:
+- DS2 design:
   - 3508 Implement Router (M): a FIFO queue, a set to remove duplicates, and
     sorted timestamps per destination for range counts.
   - 3815 Design Auction System (M): per item, an ordered set of (amount,
@@ -1277,7 +1310,8 @@ mechanism applies.
 **Y6. Jump game**
 
 - Greedy reach: 55, 45.
-- BFS: 1306, 1654, 1345.
+- BFS: 1306, 1654, 1345, 3629.
+- Reachable groups from prefix maxima: 3660.
 - DP with a deque or window: 1696, 1871.
 - DP with a monotonic stack or ordered map: 1340, 975.
 - DP over a set of jump sizes: 403.
@@ -1306,6 +1340,7 @@ mechanism applies.
 - Greedy over every rise: 122.
 - State machine: 123, 188, 309, 714.
 - 188 with a large k collapses to 122.
+- A false friend: 3652.
 
 **Y10. Palindrome**
 
@@ -1409,8 +1444,10 @@ mechanism applies.
 
 ## Counts
 
-24 technique families, 98 patterns, 22 themes, and about 400 problems, 23 of
-them Premium. 58 patterns are core: that is the default view in the app.
+25 technique families (DS, data-structure design, was added when the app was
+built), 102 patterns, 22 themes, and 527 problems, 23 of them Premium. 71
+patterns are core: that is the default view in the app. The app's list is
+generated from this file by `tools/leet-catalog.mjs`.
 Section Z adds about 105 recent problems (release 3000 and later), all placed
 after reading their statements; 12 more were read and dropped. It adds four
 new patterns: I2 (DP states in a segment tree), M6 (Manhattan to Chebyshev),

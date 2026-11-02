@@ -10,6 +10,8 @@ find $A -name '*.js' -exec sed -i 's/\r$//' {} +
 sed -i 's/\r$//' $A/styles.css
 chmod -R a+rX $A
 for f in $A/app.js $A/views/*.js $A/topics/*.js $A/core/*.js; do node --check "$f" || { echo "SYNTAX: $f"; exit 1; }; done
+# The browser's data, so its list of built walkthroughs follows the topic files.
+(cd /var/www/portfolio && sed -i 's/\r$//' apps/leet/CATALOG.md && node tools/leet-catalog.mjs && chmod a+r apps/leet/catalog-data.js) || exit 1
 
 T=/tmp/pt; rm -rf $T; mkdir -p $T/src; cp -r $A $T/alg; echo '{"type":"module"}' > $T/package.json
 cat > $T/t.mjs <<'JS'
