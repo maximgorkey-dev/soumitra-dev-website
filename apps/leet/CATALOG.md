@@ -1445,7 +1445,7 @@ mechanism applies.
 ## Counts
 
 25 technique families (DS, data-structure design, was added when the app was
-built), 102 patterns, 22 themes, and 527 problems, 23 of them Premium. 71
+built), 102 patterns, 22 themes, and 561 problems, 26 of them Premium. 71
 patterns are core: that is the default view in the app. The app's list is
 generated from this file by `tools/leet-catalog.mjs`.
 Section Z adds about 105 recent problems (release 3000 and later), all placed

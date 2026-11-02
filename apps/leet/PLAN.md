@@ -47,6 +47,24 @@ half-built.
 7. [ ] Concurrency problems: raise the sandbox thread limit (`NPROC`) for
    those runs only.
 
+## Adding a problem
+
+1. Copy `apps/algorithms/topics/lc-84.js` (sequence view) or `lc-312.js`
+   (grid view) to `lc-<number>.js` and rewrite it. The last frame must carry
+   a `Result` metric that the traced `solution.cpp` prints exactly.
+2. Import it in `apps/algorithms/core/catalog.js` and add it to the array,
+   in catalogue order (A, B, C …), so the sidebar follows the families.
+3. Deploy, then run `bash tools/patterns-selftest.sh leet` on the VM (about
+   a minute). The reference must pass its harness, the brute force must pass
+   everything except the stress case, and the animation must match the
+   program.
+4. Commit in batches of 4 to 6 problems, and tick them below.
+
+Scale-out order: the canonical problem of every core pattern (the list
+comes from `catalog-data.js`), family by family.
+
+Built so far: 84, 312, 4.
+
 ## If the session runs out
 
 Nothing is lost: every finished step is committed on the VM

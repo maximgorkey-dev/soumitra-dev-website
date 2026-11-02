@@ -13,12 +13,15 @@ const themes = [];
 const TIER = /`\[(core|stretch|rare)/;
 
 // One entry, title tokens without punctuation, then (E|M|H[, P]), optional \* and tier.
-const TITLE = String.raw`[A-Z0-9][\w'’\`\-–()]*(?: (?:[\w'’\`\-–()]+|\([A-Za-z ]+\)))*?`;
+const TITLE = String.raw`[A-Z0-9…][\w'’\`\-–()]*(?: (?:[\w'’\`\-–()]+|\([A-Za-z ]+\)))*?`;
 const ENTRY = new RegExp(String.raw`(?:^|[\s;:,(])(?:(\d{1,4}) and )?(\d{1,4}) (${TITLE}) \(([EMH])(?:, ([EMH]))?(, P)?\)(\\\*)?(?: \`\[(core|stretch|rare)\]\`)?`, "g");
 
 function addProblems(text, pid, { recent = false } = {}) {
+  let base = "";  // "122 … II" borrows the title of the entry before it
   for (const m of text.matchAll(ENTRY)) {
-    const [, pair, num, title, d1, d2, prem, star, tier] = m;
+    const [, pair, num, raw, d1, d2, prem, star, tier] = m;
+    const title = raw.startsWith("…") ? `${base}${raw.slice(1)}` : raw;
+    if (!raw.startsWith("…")) base = raw;
     for (const n of [pair, num].filter(Boolean).map(Number)) {
       const d = d2 && n === Number(num) ? d2 : d1;
       if (problems.has(n) && problems.get(n).pattern) continue;  // first home wins
@@ -117,7 +120,7 @@ for (const sec of sections) {
     for (const b of bullets(buf)) {
       if (b.text.startsWith("Insight:")) cur.insight = b.text.slice(8).trim();
       else if (b.text.startsWith("Signal:")) cur.signal = b.text.slice(7).trim();
-      else if (b.text.startsWith("Problems:")) addProblems(b.text.slice(9), cur.id);
+      else addProblems(b.text, cur.id);
     }
   };
   for (const l of lines) {
