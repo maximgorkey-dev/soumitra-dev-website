@@ -63,7 +63,11 @@ half-built.
 Scale-out order: the canonical problem of every core pattern (the list
 comes from `catalog-data.js`), family by family.
 
-Built so far: 84, 312, 4.
+Built so far: 84, 312, 4; A family: 560, 239, 76, 42.
+
+The self-test caches passing listings and harnesses by content hash
+(`~/.cache/patterns-selftest` on the VM), so a run only compiles what
+changed. A cold run takes about 20 s per harness on this VM.
 
 ## If the session runs out
 

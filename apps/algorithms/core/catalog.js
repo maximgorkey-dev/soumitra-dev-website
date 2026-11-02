@@ -73,7 +73,11 @@ import { policy } from "../topics/pat-policy.js";
 import { ranges } from "../topics/pat-ranges.js";
 import { concepts } from "../topics/pat-concepts.js";
 
+import { lc560 } from "../topics/lc-560.js";
 import { lc84 } from "../topics/lc-84.js";
+import { lc239 } from "../topics/lc-239.js";
+import { lc76 } from "../topics/lc-76.js";
+import { lc42 } from "../topics/lc-42.js";
 import { lc312 } from "../topics/lc-312.js";
 import { lc4 } from "../topics/lc-4.js";
 
@@ -100,7 +104,7 @@ export const ALGORITHMS = [
   pimpl, nvi, ruleOfZero, policy, ranges, concepts,
   factoryMethod, abstractFactory, builder, prototype, singleton,
 
-  lc84, lc4, lc312,
+  lc560, lc84, lc239, lc76, lc42, lc4, lc312,
 ];
 
 /* Kruskal rather than the first entry: it is the most complete treatment here,

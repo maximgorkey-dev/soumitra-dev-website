@@ -13,7 +13,7 @@
  *   DONE <passed>/<total>
  *
  * tests: {
- *   fn, args: [{ type, name }], starter, reference, brute?,
+ *   fn, args: [{ type, name }], starter, reference, brute?, normalize?,
  *   cases: [{ name, args: [C++ initialiser per argument] }],
  *   random?: { count, gen },   gen assigns every argument; rnd, rnd_vec, rnd_sorted available
  *   stress?: { label, gen },
@@ -58,12 +58,16 @@ bool judge(const string& name, U user, R ref, I input, bool quiet, const string&
 inline long long rnd(long long lo, long long hi) { return lo + (long long)(lt_::next() % (uint64_t)(hi - lo + 1)); }
 inline vector<int> rnd_vec(int n, int lo, int hi) { vector<int> v(n); for (auto& x : v) x = (int)rnd(lo, hi); return v; }
 inline vector<int> rnd_sorted(int n, int lo, int hi) { auto v = rnd_vec(n, lo, hi); sort(v.begin(), v.end()); return v; }
+inline string rnd_str(int n, const string& alphabet) { string s(n, ' '); for (auto& c : s) c = alphabet[rnd(0, (long long)alphabet.size() - 1)]; return s; }
 `;
 
 export function buildHarness(tests, userCode, { stress = true } = {}) {
   const { fn, args } = tests;
   const decl = args.map((a) => `${a.type} ${a.name}{};`).join(" ");
-  const call = (ns) => `[&] { ${args.map((a, i) => `auto a${i} = ${a.name};`).join(" ")} return ${ns}Solution().${fn}(${args.map((_, i) => `a${i}`).join(", ")}); }`;
+  // `normalize` (a C++ lambda that may read the arguments by name) maps an answer
+  // to what is compared, for problems where several answers are correct.
+  const norm = tests.normalize ? `(${tests.normalize})` : "";
+  const call = (ns) => `[&] { ${args.map((a, i) => `auto a${i} = ${a.name};`).join(" ")} return ${norm}(${ns}Solution().${fn}(${args.map((_, i) => `a${i}`).join(", ")})); }`;
   const input = `[&] { return string("${args.map((a) => a.name).join(", ")} = ") + ${args.map((a) => `lt_::show(${a.name})`).join(' + string(", ") + ')}; }`;
   const judge = (name, quiet, note = '""') => `lt_::judge(${JSON.stringify(name)}, ${call("")}, ${call("ref_::")}, ${input}, ${quiet}, ${note})`;
 
@@ -72,20 +76,20 @@ export function buildHarness(tests, userCode, { stress = true } = {}) {
     body.push(`    { ${args.map((a, i) => `${a.type} ${a.name} = ${c.args[i]};`).join(" ")} ${judge(c.name, "false")}; }`);
   }
   if (tests.random) {
-    body.push(`    { int bad = 0;
-      for (int k = 0; k < ${tests.random.count}; ++k) { ${decl} ${tests.random.gen}
-        if (!${judge("random", "true")} && ++bad >= 3) break; }
-      if (!bad) lt_::line("PASS random: ${tests.random.count} hidden cases"); }`);
+    body.push(`    { int lt_bad = 0;
+      for (int lt_k = 0; lt_k < ${tests.random.count}; ++lt_k) { ${decl} ${tests.random.gen}
+        if (!${judge("random", "true")} && ++lt_bad >= 3) break; }
+      if (!lt_bad) lt_::line("PASS random: ${tests.random.count} hidden cases"); }`);
   }
   if (stress && tests.stress) {
     const name = `stress (${tests.stress.label})`;
     body.push(`    { ${decl} ${tests.stress.gen}
       lt_::line(${JSON.stringify(`RUN ${name}`)});
-      auto t0 = chrono::steady_clock::now();
-      auto got = ${call("")}();
-      double secs = chrono::duration<double>(chrono::steady_clock::now() - t0).count();
-      char b[48]; snprintf(b, sizeof b, "in %.3f s", secs);
-      lt_::judge(${JSON.stringify(name)}, [&] { return got; }, ${call("ref_::")}, [&] { return string("large hidden input"); }, false, b); }`);
+      auto lt_t0 = chrono::steady_clock::now();
+      auto lt_got = ${call("")}();
+      double lt_secs = chrono::duration<double>(chrono::steady_clock::now() - lt_t0).count();
+      char lt_b[48]; snprintf(lt_b, sizeof lt_b, "in %.3f s", lt_secs);
+      lt_::judge(${JSON.stringify(name)}, [&] { return lt_got; }, ${call("ref_::")}, [&] { return string("large hidden input"); }, false, lt_b); }`);
   }
 
   return `${SUPPORT}

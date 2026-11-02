@@ -86,8 +86,13 @@ node $T/t.mjs || exit 1
 
 cd $T/src
 FAILED=0
+CACHE=$HOME/.cache/patterns-selftest; mkdir -p $CACHE
 for d in */; do
   d=${d%/}
+  # Unchanged listings that passed before are not recompiled (unless "show" wants their output).
+  dkey=$(cat $d/*.cpp $d/expected.txt /var/www/portfolio/server/cc/*.hpp | sha1sum | cut -c1-20)
+  if [ "${1:-}" != "show" ] && [ -f $CACHE/d-$dkey ]; then continue; fi
+  DFAIL=$FAILED; FAILED=0
   for f in $d/*.cpp; do
     if g++ -std=c++20 -Wall -Wextra -Werror -O1 -I /var/www/portfolio/server/cc -o ${f%.cpp} $f 2> ${f%.cpp}.err; then
       ./${f%.cpp} > ${f%.cpp}.out 2>&1 || { echo "  RUN FAILED $f"; FAILED=1; }
@@ -122,13 +127,19 @@ for d in */; do
       process.exit(bad ? 1 : 0);
     " || FAILED=1
   fi
+  [ $FAILED = 0 ] && touch $CACHE/d-$dkey
+  FAILED=$((FAILED | DFAIL))
 done
 [ $FAILED = 0 ] && echo "every listing compiles with -Werror and every animation matches its program"
 
 # Interview problems: the reference must pass its own harness, stress included,
 # and the brute force must pass everything but the stress case.
+# A harness that passed before is skipped while its source is unchanged: each
+# compile of <bits/stdc++.h> takes about 20 s on this VM.
 for f in $T/leet/*/*.cpp; do
   [ -e "$f" ] || continue
+  key=$(sha1sum < $f | cut -c1-20)
+  if [ -f $CACHE/h-$key ]; then echo "  ${f#$T/leet/}: unchanged, passed before"; continue; fi
   if ! g++ -std=c++20 -O1 -Wall -o ${f%.cpp} $f 2> ${f%.cpp}.err; then
     echo "  HARNESS COMPILE FAILED $f"; head -15 ${f%.cpp}.err; FAILED=1; continue
   fi
@@ -138,6 +149,7 @@ for f in $T/leet/*/*.cpp; do
     echo "  HARNESS FAILED $f:"; echo "$out" | grep -v '^PASS' | head -8; FAILED=1
   else
     echo "  ${f#$T/leet/}: $last $(echo "$out" | grep '^PASS stress' | sed 's/.*) //')"
+    touch $CACHE/h-$key
   fi
 done
 if [ "${1:-}" = "show" ]; then for d in */; do for o in $d*.out; do echo "--- $o"; cat $o; done; done; fi
