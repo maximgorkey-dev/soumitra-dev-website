@@ -49,8 +49,8 @@ then refined from LeetCode's public problem list when this is built:
 
 > **Recent problems** (3000+) are in section Z. They were picked from a saved
 > list of 446 recent medium and hard problems. Z1 holds problems whose
-> solution I know. Z2 holds newer ones placed from their title only, which
-> need their statement read before they are final. Problems below 3000 come
+> solution I know. Z2 holds newer ones, each placed after reading its
+> statement, plus a short list of the ones dropped. Problems below 3000 come
 > from the main sections.
 
 **Per-problem page** (from the earlier discussion):
@@ -248,6 +248,14 @@ This is the home for one-insight problems: the lemma is the whole solution.
   member with a set.
 - Problems: 1630 Arithmetic Subarrays (M)\*; 1502 Can Make Arithmetic
   Progression From Sequence (E); 2367 Number of Arithmetic Triplets (E).
+
+**C7. Permutation cycles** `[core]`
+
+- Insight: the minimum number of swaps that sort a permutation is n minus
+  its number of cycles. Map the values to their target positions first.
+- Problems: 2471 Minimum Number of Operations to Sort a Binary Tree by Level
+  (M); 3551 Minimum Swaps to Sort by Digit Sum (M)\*; 765 Couples Holding
+  Hands (H).
 
 ## D. Greedy
 
@@ -786,6 +794,13 @@ This is the home for one-insight problems: the lemma is the whole solution.
 - Problems: 338 Counting Bits (E)\*; 201 Bitwise AND of Numbers Range (M);
   693 Binary Number with Alternating Bits (E); 89 Gray Code (M).
 
+**Q3. Linear XOR basis** `[stretch]`
+
+- Insight: run Gaussian elimination over GF(2). Its basis gives every XOR
+  that a subset can reach, so the maximum is found greedily from the top
+  bit down.
+- Problems: 3681 Maximum XOR of Subsequences (H)\*.
+
 ## R. Scheduling simulations `[core]`
 
 **R1. Heaps of free and busy resources over time**
@@ -1075,57 +1090,143 @@ pattern's ladder; it stays separate here so the pass is easy to review.
   multiplication.
 - Problems: 3165\* (see F1 above).
 
-### Z2. Placed from the title only: read each statement before finalising
+### Z2. Placed after reading the statement
 
-These are the newest problems in the list, and I don't know their solutions
-yet. The placement is what the title suggests.
+These are the newest problems in the list. Each was placed after reading its
+statement and constraints. Where a pair has an "I" and a "II", the "I" is
+dropped when its limits allow brute force.
 
-- F1 state machine, stocks: 3573 Best Time to Buy and Sell Stock V (M), which
-  probably adds short selling as a third state; 3652 Best Time to Buy and
-  Sell Stock using Strategy (M); 3640 Trionic Array II (H), probably three
-  phases (up, down, up); 3699 and 3700 Number of ZigZag Arrays I and II (H),
-  alternating DP, with II perhaps needing a matrix power.
-- C1 median ladder: 3585 Find Weighted Median Node in Tree (H), a weighted
-  median along a tree path, probably with binary lifting.
-- Q3, a possible new pattern, the linear XOR basis: 3681 Maximum XOR of
-  Subsequences (H).
-- A1 balanced as a prefix difference: 3713 and 3714 Longest Balanced
-  Substring I and II (M); 3719 and 3721 Longest Balanced Subarray I and II
-  (M, H).
-- Majority via ±1 prefix sums: 3737 and 3739 Count Subarrays With Majority
-  Element I and II (M, H).
-- F12 digit DP: 3751 and 3753 Total Waviness of Numbers in Range I and II (M,
-  H); 3490 Count Beautiful Numbers (H).
-- K1 parsing: 3749 Evaluate Valid Expressions (H).
-- L design: 3484 Design Spreadsheet (M); 3508 Implement Router (M); 3815
-  Design Auction System (M); 3822 Design Order Management System (M); 3829
-  Design Ride Sharing System (M); 3885 Design Event Manager (M).
-- G2 Dijkstra variants: 3650 Minimum Cost Path with Edge Reversals (M); 3651
-  Minimum Cost Path with Teleportations (H); 3924 Minimum Threshold Path With
-  Limited Heavy Edges (H).
-- G4 union-find and X3 reverse: 3607 Power Grid Maintenance (M); 3608 Minimum
-  Time for K Connected Components (M); 3600 Maximize Spanning Tree Stability
-  with Upgrades (H).
-- H4 binary lifting: 3532 and 3534 Path Existence Queries in a Graph I and II
-  (M, H).
-- Cycle decomposition of a permutation: 3551 Minimum Swaps to Sort by Digit
-  Sum (M); 3942 Minimum Operations to Sort a Permutation (M).
+**State machines and the stock theme**
+
+- F1: 3573 Best Time to Buy and Sell Stock V (M). Short selling adds a third
+  state, "holding a short", next to "holding" and "flat", with k
+  transactions. This is the newest member of the stocks ladder.
+- F1: 3640 Trionic Array II (H), with phases up, down, up, run as four states
+  over a maximum-sum DP.
+- F1 plus prefix sums, then O3 matrix power: 3699 and 3700 Number of ZigZag
+  Arrays I and II (H). I is a DP over (last value, direction) with prefix
+  sums. II has n up to 10⁹ but at most 75 values, so the same transition
+  becomes a matrix power. This is a good pair for "when n is huge but the
+  state is small".
+- A false friend for the stock theme: 3652 Best Time to Buy and Sell Stock
+  using Strategy (M) is a fixed window over prefix sums, not a state machine.
+
+**Arrays, stacks and windows**
+
+- A1 prefix-difference hashing: 3714 Longest Balanced Substring II (H, with
+  letters a, b, c). Split into cases: one letter, two letters (reset at the
+  third), or all three, keyed by (b − a, c − a).
+- A1 with ±1 prefix sums: 3739 Count Subarrays With Majority Element II (H).
+  Map the target to +1 and everything else to −1, then count earlier prefixes
+  that are smaller.
+- I1 with range add: 3721 Longest Balanced Subarray II (H) `[stretch]`. Each
+  value counts only at its last occurrence, so keep a segment tree of
+  balances and find the leftmost zero.
 - A2 monotonic stack: 3542 Minimum Operations to Convert All Elements to Zero
-  (M); 3676 Count Bowl Subarrays (M).
+  (M), which counts new rising levels with zeros as resets (a sibling of
+  3229); 3676 Count Bowl Subarrays (M), which counts pairs whose two ends
+  dominate everything between them.
 - A3 deque plus DP: 3578 Count Partitions With Max-Min Difference at Most K
-  (M).
-- Y6 jump game: 3660 Jump Game IX (M); 3629 Minimum Jumps to Reach End via
-  Prime Teleportation (M).
+  (M). Two deques give the leftmost valid start, and prefix sums of the DP
+  give the count.
+- A3 plus J2: 3845 Maximum Subarray XOR with Bounded Range (H). A max − min ≤
+  k window with two deques, combined with an XOR trie over prefix XORs that
+  supports deletion.
+- A6 rotation: 3942 Minimum Operations to Sort a Permutation (M), using
+  reverse and rotate-left. The array must be a rotation of sorted or of
+  reverse-sorted; then count the operations.
+- C7, new pattern, permutation cycles `[core]`. The minimum number of swaps
+  to sort is n minus the number of cycles.
+  - 3551 Minimum Swaps to Sort by Digit Sum (M)\*.
+- Y6 jump game: 3660 Jump Game IX (M). Adjacent indices join one reachable
+  group when the prefix maximum before a split exceeds the suffix minimum
+  after it, so sweep from the right. 3629 Minimum Jumps to Reach End via
+  Prime Teleportation (M) is BFS with a sieve, using each prime's teleport
+  group once, like 1345.
+
+**Graphs**
+
+- G2 with a lemma: 3650 Minimum Cost Path with Edge Reversals (M). The
+  "once per node" limit never binds on a shortest path, so add every reverse
+  edge at cost 2w and run Dijkstra.
+- F8 layered by teleports: 3651 Minimum Cost Path with Teleportations (H).
+  The DP layer is the number of teleports used (k ≤ 10). Sort the cells by
+  value and carry a suffix minimum across layers.
+- B1 plus 0-1 BFS: 3924 Minimum Threshold Path With Limited Heavy Edges (H).
+  Binary search the threshold; heavy edges cost 1, light ones cost 0.
+- G4 union-find:
+  - 3607 Power Grid Maintenance (M): components plus an ordered set of
+    online stations per component.
+  - 3608 Minimum Time for K Connected Components (M): add edges from the
+    latest time backwards until fewer than k components remain (X3,
+    thinking in reverse).
+  - 3600 Maximize Spanning Tree Stability with Upgrades (H) `[stretch]`:
+    binary search the stability, then build with union-find, spending the
+    upgrades greedily.
+- H4 binary lifting:
+  - 3534 Path Existence Queries in a Graph II (H): sort by value, so each
+    node's farthest reachable neighbour is a jump, and lift those jumps.
+  - 3585 Find Weighted Median Node in Tree (H): use the LCA and path weights,
+    then lift to the first node past half the weight. Despite its name this
+    isn't the C1 median lemma; it's a false friend on that ladder.
+- H4 plus Q: 3841 Palindromic Path Queries in a Tree (H) `[stretch]`. A path
+  can be rearranged into a palindrome when at most one bit of its parity
+  mask is set. The mask is mask(u) ⊕ mask(v) ⊕ bit(lca), with updates done by
+  a Fenwick tree over an Euler tour.
+
+**Counting, bits and construction**
+
+- F12 digit DP: 3753 Total Waviness of Numbers in Range II (H), with the
+  state (last two digits, tight, started) summing peaks and valleys; 3490
+  Count Beautiful Numbers (H) `[stretch]`, with the state (sum, product) and
+  a map for memoisation.
+- Q3, new pattern, the linear XOR basis `[stretch]`: X ⊕ Y over two
+  overlapping subsequences can be the XOR of any subset, so build a basis
+  and take its maximum.
+  - 3681 Maximum XOR of Subsequences (H)\*.
 - U4 constructive kth: 3821 Find Nth Smallest Integer With K One Bits (H).
-- M geometry counting: 3623 and 3625 Count Number of Trapezoids I and II (M,
-  H).
-- E intervals: 4057 Number of Intersecting Interval Pairs II (M); 4086
-  Minimum Interval Selection to Cover Target Intervals (H).
-- R scheduling and simulation: 4023 Elevator Requests II (H); 3494 Find the
-  Minimum Amount of Time to Brew Potions (M); 3510 Minimum Pair Removal to
-  Sort Array II (H), probably a linked list plus a heap.
-- J2 XOR trie: 3845 Maximum Subarray XOR with Bounded Range (H).
-- Tree XOR masks: 3841 Palindromic Path Queries in a Tree (H).
+  Choose bits from the top down using binomial counts.
+- M1 geometry counting: 3625 Count Number of Trapezoids II (H). Count pairs
+  of parallel segments by reduced slope, then subtract parallelograms, which
+  were counted twice, found by matching midpoints.
+
+**Intervals and scheduling**
+
+- D1 covering: 4086 Minimum Interval Selection to Cover Target Intervals (H).
+  Merge the targets, then cover greedily with the farthest reach, as in
+  1024 and 1326.
+- E1 counting by complement: 4057 Number of Intersecting Interval Pairs II
+  (M). Count the pairs that don't intersect using sorted starts and ends.
+- F4 interval DP on a line: 4023 Elevator Requests II (H). Sort the
+  requests; the state is the visited range plus which end you are at.
+- R pipeline timing: 3494 Find the Minimum Amount of Time to Brew Potions (M)
+  `[stretch]`. Each potion's start is pushed by the tightest wizard, found
+  with prefix sums of skill.
+- T1 plus a heap: 3510 Minimum Pair Removal to Sort Array II (H). Simulate
+  with a doubly linked list and an ordered set of adjacent sums, keeping a
+  running count of descents.
+
+**Design**
+
+- L design:
+  - 3508 Implement Router (M): a FIFO queue, a set to remove duplicates, and
+    sorted timestamps per destination for range counts.
+  - 3815 Design Auction System (M): per item, an ordered set of (amount,
+    user).
+  - 3885 Design Event Manager (M): a heap with lazy deletion, the same
+    shape as 3408.
+
+**Dropped after reading:**
+
+- 3713, 3719 and 3737 are the brute-force "I" versions of problems kept
+  above.
+- 3751 is the brute-force "I" of 3753.
+- 3532 is the "I" of 3534.
+- 3484 Design Spreadsheet, 3822 Design Order Management System and 3829
+  Design Ride Sharing System only need hash maps or small queues.
+- 3749 Evaluate Valid Expressions is plain recursive descent; it stays as one
+  line on K1 rather than a page.
+- 3623, the "I" of 3625.
 
 ---
 
@@ -1308,9 +1409,9 @@ mechanism applies.
 
 ## Counts
 
-24 technique families, 96 patterns, 22 themes, and about 400 problems, 23 of
-them Premium. 57 patterns are core: that is the default view in the app.
-Section Z adds about 60 recent problems placed with their mechanism, and about
-50 placed from their title only. It also proposes three new patterns: I2
-(DP states in a segment tree), M6 (Manhattan to Chebyshev) and possibly Q3
-(the linear XOR basis).
+24 technique families, 98 patterns, 22 themes, and about 400 problems, 23 of
+them Premium. 58 patterns are core: that is the default view in the app.
+Section Z adds about 105 recent problems (release 3000 and later), all placed
+after reading their statements; 12 more were read and dropped. It adds four
+new patterns: I2 (DP states in a segment tree), M6 (Manhattan to Chebyshev),
+C7 (permutation cycles) and Q3 (the linear XOR basis).
