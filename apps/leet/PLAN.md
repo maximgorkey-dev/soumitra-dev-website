@@ -1,0 +1,52 @@
+# Interview problems section: build plan
+
+This is the plan to resume from. A new session should read this file, then
+`CATALOG.md` "How to read this", then continue at the first unticked step.
+Each step ends with a self-test, deploy and commit, so the site is never left
+half-built.
+
+## Shape
+
+- `/apps/leet/` is a third page on the shared engine (`apps/algorithms/app.js`),
+  showing the catalogue section `"Interview problems"`, the same way
+  `/apps/patterns/` shows `"Design patterns"`.
+- Each problem is one topic file, `apps/algorithms/topics/lc-<number>.js`. It
+  follows `topics/CONTRACT.md` (sequence or grid view, traced C++ printing the
+  last frame's Result) and adds a `problem` object:
+  - `number`, `slug`, `difficulty` (E/M/H), `tier` (core/stretch/rare),
+    `pattern` (catalogue id such as `A2`), `themes`
+  - `statement` (in my own words), `hints` (a ladder), `brute`, `invariant`,
+    `traps`, `followUps`
+  - `tests`: `starter` (the LeetCode-style `class Solution`), `reference`,
+    optional `brute` (shown timing out), `cases` (named edge cases) and
+    `random` (a seeded generator compared against the reference) and
+    `stress` (one large input, timed)
+- `apps/algorithms/core/leet-harness.js` turns `tests` plus your code into
+  one C++ program for the existing `/api/algorithms/program` sandbox. It
+  needs no server change. The program prints one line per case.
+- `apps/leet/ui.js` adds the Problem and Solve tabs, the study or
+  attempt-first switch (per page, kept in localStorage) and the tier
+  override. `app.js` loads it only on the leet page.
+- `tools/patterns-selftest.sh` also builds each problem's harness with the
+  reference solution and requires every case to pass.
+
+## Steps
+
+1. [x] Engine hooks, the leet page, the harness, and 84 Largest Rectangle in
+   Histogram.
+2. [ ] 312 Burst Balloons (grid view, interval DP).
+3. [ ] 4 Median of Two Sorted Arrays (sequence view, partition search).
+4. [ ] The catalogue browser: every problem in `CATALOG.md` as data
+   (`apps/leet/catalog-data.js`), with filters for technique or theme, tier
+   (with your override), difficulty and release year, and an "Open on
+   LeetCode" link. Built pages link to their topic.
+5. [ ] Tile on `/apps/`, then a review with you before scaling up.
+6. [ ] Scale-out, family by family, core tier first.
+7. [ ] Concurrency problems: raise the sandbox thread limit (`NPROC`) for
+   those runs only.
+
+## If the session runs out
+
+Nothing is lost: every finished step is committed on the VM
+(`/var/www/portfolio`, branch `main`). To resume, open a new chat and say
+"continue apps/leet/PLAN.md". Steps are ticked here as they land.

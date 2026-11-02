@@ -73,6 +73,8 @@ import { policy } from "../topics/pat-policy.js";
 import { ranges } from "../topics/pat-ranges.js";
 import { concepts } from "../topics/pat-concepts.js";
 
+import { lc84 } from "../topics/lc-84.js";
+
 export const ALGORITHMS = [
   bfs, dfs,
   kruskal, prim, boruvka,
@@ -95,6 +97,8 @@ export const ALGORITHMS = [
   raii, crtp, typeErasure, variant,
   pimpl, nvi, ruleOfZero, policy, ranges, concepts,
   factoryMethod, abstractFactory, builder, prototype, singleton,
+
+  lc84,
 ];
 
 /* Kruskal rather than the first entry: it is the most complete treatment here,

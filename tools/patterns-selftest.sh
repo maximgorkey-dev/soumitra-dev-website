@@ -1,7 +1,10 @@
 #!/bin/bash
 # Self-test for the design-patterns app.
-# Usage: bash tools/patterns-selftest.sh [show] [preview-topic-id]
+# Usage: bash tools/patterns-selftest.sh [show|leet] [preview-topic-id]
+#   leet  checks only the interview problems (lc-*), in well under a minute
 set -u
+ONLY=""; [ "${1:-}" = "leet" ] && ONLY="lc-"
+export ONLY
 A=/var/www/portfolio/apps/algorithms
 find $A -name '*.js' -exec sed -i 's/\r$//' {} +
 sed -i 's/\r$//' $A/styles.css
@@ -13,9 +16,12 @@ cat > $T/t.mjs <<'JS'
 import fs from "fs";
 import { ALGORITHMS } from "./alg/core/catalog.js";
 import { record } from "./alg/core/trace.js";
+import { buildHarness } from "./alg/core/leet-harness.js";
 let bad = 0;
 const fail = (id, msg) => { bad++; console.log(`  FAIL ${id}: ${msg}`); };
-for (const a of ALGORITHMS) {
+const ONLY = process.env.ONLY || "";
+const CHOSEN = ALGORITHMS.filter((a) => a.id.startsWith(ONLY));
+for (const a of CHOSEN) {
   const frames = record(a.run(a.structure));
   if (a.structure.kind === "graph") continue;
   // structural sanity, so a typo shows here rather than as a blank box
@@ -63,9 +69,15 @@ for (const a of ALGORITHMS) {
   for (const f of a.code.files) fs.writeFileSync(`/tmp/pt/src/${a.id}/${f.name}`, f.source);
   fs.writeFileSync(`/tmp/pt/src/${a.id}/expected.txt`, out.join("\n") + (out.length ? "\n" : ""));
   fs.writeFileSync(`/tmp/pt/src/${a.id}/traced`, traced[0]?.name || "");
+  const t = a.problem?.tests;
+  if (t) {
+    fs.mkdirSync(`/tmp/pt/leet/${a.id}`, { recursive: true });
+    fs.writeFileSync(`/tmp/pt/leet/${a.id}/reference.cpp`, buildHarness(t, t.reference));
+    if (t.brute) fs.writeFileSync(`/tmp/pt/leet/${a.id}/brute.cpp`, buildHarness(t, t.brute, { stress: false }));
+  }
   console.log(`  ${a.id}: ${frames.length} frames, ${out.length} printed lines`);
 }
-console.log(`all ${ALGORITHMS.length} topics record; ${bad} structural failures`);
+console.log(`all ${CHOSEN.length} topics record; ${bad} structural failures`);
 process.exit(bad ? 1 : 0);
 JS
 node $T/t.mjs || exit 1
@@ -110,6 +122,22 @@ for d in */; do
   fi
 done
 [ $FAILED = 0 ] && echo "every listing compiles with -Werror and every animation matches its program"
+
+# Interview problems: the reference must pass its own harness, stress included,
+# and the brute force must pass everything but the stress case.
+for f in $T/leet/*/*.cpp; do
+  [ -e "$f" ] || continue
+  if ! g++ -std=c++20 -O1 -Wall -o ${f%.cpp} $f 2> ${f%.cpp}.err; then
+    echo "  HARNESS COMPILE FAILED $f"; head -15 ${f%.cpp}.err; FAILED=1; continue
+  fi
+  out=$(timeout 10 ${f%.cpp})
+  last=$(echo "$out" | tail -1)
+  if echo "$out" | grep -q '^FAIL' || ! echo "$last" | grep -Eq '^DONE ([0-9]+)/\1$'; then
+    echo "  HARNESS FAILED $f:"; echo "$out" | grep -v '^PASS' | head -8; FAILED=1
+  else
+    echo "  ${f#$T/leet/}: $last $(echo "$out" | grep '^PASS stress' | sed 's/.*) //')"
+  fi
+done
 if [ "${1:-}" = "show" ]; then for d in */; do for o in $d*.out; do echo "--- $o"; cat $o; done; done; fi
 
 # Optional preview of one topic on a temporary public page.

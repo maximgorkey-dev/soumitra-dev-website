@@ -1,0 +1,42 @@
+/* Interview problems: the layer on top of /apps/algorithms/styles.css. */
+
+.alg-title-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+
+.leet-switch { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; flex-shrink: 0; }
+.leet-switch button {
+  font: 500 0.78rem var(--sans); color: var(--text-dim); background: transparent;
+  border: 0; padding: 6px 13px; cursor: pointer;
+}
+.leet-switch button.on { background: var(--accent-soft); color: var(--text); }
+
+/* Attempt first: no picture and no solution tabs until you pass or reveal. */
+.leet-attempt .viz, .leet-attempt .leet-spoiler { display: none; }
+
+.leet-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 16px; }
+.leet-diff, .leet-tag {
+  font-size: 0.72rem; padding: 3px 10px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text-dim);
+}
+.leet-diff-H { color: #f85149; border-color: rgba(248, 81, 73, 0.4); }
+.leet-diff-M { color: #e3b341; border-color: rgba(227, 179, 65, 0.4); }
+.leet-diff-E { color: #3fb950; border-color: rgba(63, 185, 80, 0.4); }
+.leet-theme { font-style: italic; }
+.leet-tier { display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--text-dim); }
+.leet-override { color: var(--accent-2); }
+.leet-open { margin-left: auto; }
+
+.leet-hints { margin: 0 0 12px; padding-left: 22px; }
+.leet-hints li { margin: 0 0 8px; color: var(--text); }
+
+.leet-locked {
+  margin: 20px 0 0; padding: 12px 14px; border: 1px dashed var(--border);
+  border-radius: var(--radius); color: var(--text-dim);
+}
+.leet-locked p { margin: 0 0 10px; }
+
+.leet-verdicts { list-style: none; margin: 12px 0 0; padding: 0; font: 0.8rem var(--mono); }
+.leet-verdicts li { display: flex; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--border); word-break: break-word; }
+.leet-verdicts span { width: 1.2em; flex-shrink: 0; }
+.leet-pass span { color: #3fb950; }
+.leet-fail { color: #f85149; }
+.leet-timeout { color: #e3b341; }

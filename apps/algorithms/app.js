@@ -21,13 +21,17 @@ const el = (id) => document.getElementById(id);
 /** One renderer per structure kind. Trees join this map later. */
 const VIEWS = { graph: createGraphView, objects: createObjectsView, memory: createMemoryView, sequence: createSequenceView, grid: createGridView };
 
-/** Which tab panels exist, in bar order. */
-const PANELS = ["explain", "code", "analysis", "run"];
+/** Which tab panels exist, in bar order. Pages choose their own tabs. */
+const PANELS = [...document.querySelectorAll("[data-tab]")].map((b) => b.dataset.tab);
 
 /* One engine, several apps: each page names the catalogue section it shows,
    so /apps/patterns/ and /apps/algorithms/ share every line of this file. */
 const SECTION = document.body.dataset.section || "Algorithms";
 const TOPICS = ALGORITHMS.filter((a) => a.section === SECTION);
+
+/* A page may add its own layer (the interview problems' Problem and Solve
+   tabs); it is handed every selected topic after the shell has drawn it. */
+const EXTRA = document.body.dataset.extra ? await import(document.body.dataset.extra) : null;
 
 const state = {
   algorithm: null,
@@ -114,6 +118,7 @@ function select(id) {
   state.view.setStructure(alg.structure);
 
   loadBuiltinTrace(alg);
+  EXTRA?.mount(alg, { el, esc, inline, toast, showTab, refreshCatalog: () => (renderCatalog(), markSelected(alg.id)) });
 }
 
 /** Record the bundled generator and hand it to the player. */
@@ -227,6 +232,7 @@ function renderAnalysis(alg) {
 
 function renderRun(alg) {
   const panel = el("panel-run");
+  if (!panel) return;
   const spec = alg.editable;
 
   if (!spec && alg.code.files) {
@@ -644,6 +650,11 @@ function toast(message, isError = false) {
   toastTimer = setTimeout(() => node.classList.remove("app-toast-show"), isError ? 5000 : 2000);
 }
 
+function showTab(name) {
+  document.querySelectorAll("[data-tab]").forEach((b) => b.classList.toggle("tab-active", b.dataset.tab === name));
+  for (const p of PANELS) el(`panel-${p}`).hidden = p !== name;
+}
+
 function initControls() {
   el("btn-first").addEventListener("click", () => (stop(), goto(0)));
   el("btn-prev").addEventListener("click", () => (stop(), goto(state.index - 1)));
@@ -653,12 +664,7 @@ function initControls() {
   el("scrub").addEventListener("input", () => (stop(), goto(Number(el("scrub").value))));
 
   document.querySelectorAll("[data-tab]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      document.querySelectorAll("[data-tab]").forEach((b) => b.classList.toggle("tab-active", b === btn));
-      for (const name of PANELS) {
-        el(`panel-${name}`).hidden = name !== btn.dataset.tab;
-      }
-    });
+    btn.addEventListener("click", () => showTab(btn.dataset.tab));
   });
 
   // Arrow keys are how anyone actually steps through an animation.
