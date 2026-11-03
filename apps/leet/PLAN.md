@@ -71,12 +71,14 @@ comes from `catalog-data.js`), family by family.
 Animated (15): A 560, 84, 239, 76, 42; B 875, 668, 4; C 462, 453, 229, 41,
 179, 3551; F 312.
 
-Light pages (36): A 523, 974, 1074, 85, 402, 316, 1944, 862, 1696, 1438,
+Light pages (60): A 523, 974, 1074, 85, 402, 316, 1944, 862, 1696, 1438,
 1499, 3, 992, 1004, 424, 438, 15, 881, 189, 1888, 899; B 1011, 410, 1482,
-1552, 2560, 2141, 2187, 2226, 2064, 719, 2040, 378, 33, 81, 154.
-Not yet: 654 (tree), 567, 1283, 1870, 153 (easy variants of built pages).
-Next: the C family ladder (2033, 2448, 1703, 1551, 287, 406, 1665, 2471,
-765), then D onward.
+1552, 2560, 2141, 2187, 2226, 2064, 719, 2040, 378, 33, 81, 154; C 2033,
+2448, 1703, 1551, 287, 406, 1665, 765; D 435, 452, 1024, 1326, 55, 45, 630,
+502, 871, 1642, 2233, 2208, 135, 665, 921, 1541.
+Not yet: 654, 2471 (trees), 567, 1283, 1870, 153, 1962, 1046, 1909, 1827
+(easy variants of built pages).
+Next: E (heaps, sweep lines and intervals), then F onward.
 
 A light page's stress case should leave the reference well under the 4 s
 CPU limit: this VM's CPU is burstable and timings vary several-fold.
