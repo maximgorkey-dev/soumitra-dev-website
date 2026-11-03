@@ -75,6 +75,12 @@ import { concepts } from "../topics/pat-concepts.js";
 
 import { lc560 } from "../topics/lc-560.js";
 import { lc523 } from "../topics/lc-523.js";
+import { lc974 } from "../topics/lc-974.js";
+import { lc85 } from "../topics/lc-85.js";
+import { lc402 } from "../topics/lc-402.js";
+import { lc862 } from "../topics/lc-862.js";
+import { lc992 } from "../topics/lc-992.js";
+import { lc15 } from "../topics/lc-15.js";
 import { lc84 } from "../topics/lc-84.js";
 import { lc239 } from "../topics/lc-239.js";
 import { lc76 } from "../topics/lc-76.js";
@@ -113,7 +119,7 @@ export const ALGORITHMS = [
   pimpl, nvi, ruleOfZero, policy, ranges, concepts,
   factoryMethod, abstractFactory, builder, prototype, singleton,
 
-  lc560, lc523, lc84, lc239, lc76, lc42, lc875, lc668, lc4, lc462, lc453, lc229, lc41, lc179, lc3551, lc312,
+  lc560, lc523, lc974, lc84, lc85, lc402, lc239, lc862, lc76, lc992, lc42, lc15, lc875, lc668, lc4, lc462, lc453, lc229, lc41, lc179, lc3551, lc312,
 ];
 
 /* Kruskal rather than the first entry: it is the most complete treatment here,
