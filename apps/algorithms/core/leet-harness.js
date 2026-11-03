@@ -120,6 +120,6 @@ export function parseVerdicts(stdout) {
     else if (s.startsWith("RUN ")) running = s.slice(4);
     else if (s.startsWith("DONE ")) done = s.slice(5);
   }
-  if (running) rows.push({ verdict: "timeout", text: `${running}: did not finish within the CPU limit` });
+  if (running) rows.push({ verdict: "timeout", text: `${running}: did not finish within the time or memory limit` });
   return { rows, done };
 }

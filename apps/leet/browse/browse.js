@@ -5,7 +5,7 @@
  * ticks live in localStorage under the same keys the walkthrough pages use.
  */
 
-import { FAMILIES, THEMES, PROBLEMS, BUILT } from "/apps/leet/catalog-data.js";
+import { FAMILIES, THEMES, PROBLEMS, BUILT, ANIMATED } from "/apps/leet/catalog-data.js";
 
 const el = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -17,6 +17,7 @@ const store = {
 const TIERS = ["core", "stretch", "rare"];
 const DIFFS = { E: "Easy", M: "Medium", H: "Hard" };
 const BUILT_SET = new Set(BUILT);
+const ANIMATED_SET = new Set(ANIMATED);
 const PATTERN = new Map(FAMILIES.flatMap((f) => f.patterns.map((p) => [p.id, p])));
 
 /* LeetCode numbers follow release order; boundaries from the catalogue's table. */
@@ -74,7 +75,8 @@ function row(n, { showPattern = false } = {}) {
     <select class="lb-tier${t !== defaultTier(n) ? " lb-tier-own" : ""}" data-tier="${n}" aria-label="Tier">
       ${TIERS.map((x) => `<option ${x === t ? "selected" : ""}>${x}</option>`).join("")}
     </select>
-    ${BUILT_SET.has(n) ? `<a class="app-btn app-btn-primary app-btn-sm lb-open" href="/apps/leet/#lc-${n}">Walkthrough</a>` : ""}
+    ${ANIMATED_SET.has(n) ? `<a class="app-btn app-btn-primary app-btn-sm lb-open" href="/apps/leet/#lc-${n}">Walkthrough</a>`
+      : BUILT_SET.has(n) ? `<a class="app-btn app-btn-ghost app-btn-sm lb-open" href="/apps/leet/#lc-${n}" title="Explanation, solution and tests, without an animation">Page</a>` : ""}
   </li>`;
 }
 
@@ -123,7 +125,7 @@ function render() {
   el("lb-list").innerHTML = html || `<p class="lb-dim">Nothing matches these filters.</p>`;
   const total = Object.keys(PROBLEMS).length;
   const nDone = Object.keys(PROBLEMS).filter(done).length;
-  el("lb-summary").textContent = `${shown} shown${f.view === "theme" ? " (a problem can appear under several themes)" : ""} of ${total} problems in ${PATTERN.size} patterns · ${nDone} done · ${BUILT.length} with a walkthrough.`;
+  el("lb-summary").textContent = `${shown} shown${f.view === "theme" ? " (a problem can appear under several themes)" : ""} of ${total} problems in ${PATTERN.size} patterns · ${nDone} done · ${BUILT.length} with a page, ${ANIMATED.length} of them animated.`;
 }
 
 function wire() {

@@ -5,6 +5,8 @@ import fs from "fs";
 const md = fs.readFileSync("apps/leet/CATALOG.md", "utf8").replace(/\r/g, "");
 const built = fs.readdirSync("apps/algorithms/topics")
   .map((f) => /^lc-(\d+)\.js$/.exec(f)?.[1]).filter(Boolean).map(Number);
+// Light pages are built with light() and have no animation.
+const animated = built.filter((n) => !/\blight\(/.test(fs.readFileSync(`apps/algorithms/topics/lc-${n}.js`, "utf8")));
 
 const families = [];
 const patterns = new Map();
@@ -143,10 +145,11 @@ export const FAMILIES = ${JSON.stringify(families)};
 export const THEMES = ${JSON.stringify(themes)};
 export const PROBLEMS = ${JSON.stringify(PROBLEMS)};
 export const BUILT = ${JSON.stringify(built.sort((a, b) => a - b))};
+export const ANIMATED = ${JSON.stringify(animated.sort((a, b) => a - b))};
 `;
 fs.writeFileSync("apps/leet/catalog-data.js", out);
 const np = families.reduce((s, f) => s + f.patterns.length, 0);
-console.log(`${families.length} families, ${np} patterns, ${themes.length} themes, ${Object.keys(PROBLEMS).length} problems (${Object.values(PROBLEMS).filter((p) => p.recent).length} recent, ${Object.values(PROBLEMS).filter((p) => p.premium).length} Premium), ${built.length} built`);
+console.log(`${families.length} families, ${np} patterns, ${themes.length} themes, ${Object.keys(PROBLEMS).length} problems (${Object.values(PROBLEMS).filter((p) => p.recent).length} recent, ${Object.values(PROBLEMS).filter((p) => p.premium).length} Premium), ${built.length} pages (${animated.length} animated)`);
 const empty = families.flatMap((f) => f.patterns).filter((p) => !p.problems.length).map((p) => p.id);
 if (empty.length) console.log("patterns with no problems:", empty.join(" "));
 const orphans = [...new Set(themes.flatMap((t) => t.groups.flatMap((g) => g.nums)))].filter((n) => !PROBLEMS[n]);

@@ -11,6 +11,8 @@
 
 /* Attempt first: no picture and no solution tabs until you pass or reveal. */
 .leet-attempt .viz, .leet-attempt .leet-spoiler { display: none; }
+.no-viz .viz { display: none; }
+.leet-see { margin: -6px 0 16px; font-size: 0.9em; color: var(--muted, #8b949e); }
 
 .leet-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 16px; }
 .leet-diff, .leet-tag {

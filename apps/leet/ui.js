@@ -101,6 +101,9 @@ function renderProblem(alg) {
       <a class="app-btn app-btn-ghost app-btn-sm leet-open" href="https://leetcode.com/problems/${esc(p.slug)}/"
          target="_blank" rel="noopener noreferrer">Open on LeetCode ↗</a>
     </div>
+    ${p.see
+      ? `<p class="leet-see">No animation for this one. <a href="#lc-${esc(p.see)}">${esc(p.see)}</a> animates the same pattern.</p>`
+      : ""}
 
     <h3 class="ex-h">The problem, in brief</h3>
     ${p.statement.map((s) => `<p>${inline(s)}</p>`).join("")}

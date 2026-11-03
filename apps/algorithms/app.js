@@ -109,6 +109,15 @@ function select(id) {
   renderAnalysis(alg);
   renderRun(alg);
 
+  // Interview "light" pages have everything but the animation.
+  document.body.classList.toggle("no-viz", !alg.run);
+  if (!alg.run) {
+    state.view = null;
+    state.frames = [];
+    EXTRA?.mount(alg, { el, esc, inline, toast, showTab, refreshCatalog: () => (renderCatalog(), markSelected(alg.id)) });
+    return;
+  }
+
   const makeView = VIEWS[alg.structure.kind];
   if (!makeView) {
     toast(`no renderer for structure kind "${alg.structure.kind}"`, true);

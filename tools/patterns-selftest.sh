@@ -23,7 +23,24 @@ let bad = 0;
 const fail = (id, msg) => { bad++; console.log(`  FAIL ${id}: ${msg}`); };
 const ONLY = process.env.ONLY || "";
 const CHOSEN = ALGORITHMS.filter((a) => a.id.startsWith(ONLY));
+const harness = (a) => {
+  const t = a.problem?.tests;
+  if (!t) return;
+  fs.mkdirSync(`/tmp/pt/leet/${a.id}`, { recursive: true });
+  fs.writeFileSync(`/tmp/pt/leet/${a.id}/reference.cpp`, buildHarness(t, t.reference));
+  if (t.brute) fs.writeFileSync(`/tmp/pt/leet/${a.id}/brute.cpp`, buildHarness(t, t.brute, { stress: false }));
+};
+let light = 0;
 for (const a of CHOSEN) {
+  if (!a.run) {
+    // A light interview page: no animation or traced listing, only its harness.
+    light++;
+    for (const b of a.explanation) if (typeof b !== "string" && !b.h && !b.list && !b.tip) fail(a.id, "unknown explanation block");
+    for (const k of ["statement", "hints", "brute", "invariant", "traps", "followUps", "tests"]) if (!a.problem?.[k]) fail(a.id, `problem.${k} missing`);
+    if (!a.analysis?.time || !a.analysis?.notes) fail(a.id, "analysis incomplete");
+    harness(a);
+    continue;
+  }
   const frames = record(a.run(a.structure));
   if (a.structure.kind === "graph") continue;
   // structural sanity, so a typo shows here rather than as a blank box
@@ -71,15 +88,10 @@ for (const a of CHOSEN) {
   for (const f of a.code.files) fs.writeFileSync(`/tmp/pt/src/${a.id}/${f.name}`, f.source);
   fs.writeFileSync(`/tmp/pt/src/${a.id}/expected.txt`, out.join("\n") + (out.length ? "\n" : ""));
   fs.writeFileSync(`/tmp/pt/src/${a.id}/traced`, traced[0]?.name || "");
-  const t = a.problem?.tests;
-  if (t) {
-    fs.mkdirSync(`/tmp/pt/leet/${a.id}`, { recursive: true });
-    fs.writeFileSync(`/tmp/pt/leet/${a.id}/reference.cpp`, buildHarness(t, t.reference));
-    if (t.brute) fs.writeFileSync(`/tmp/pt/leet/${a.id}/brute.cpp`, buildHarness(t, t.brute, { stress: false }));
-  }
+  harness(a);
   console.log(`  ${a.id}: ${frames.length} frames, ${out.length} printed lines`);
 }
-console.log(`all ${CHOSEN.length} topics record; ${bad} structural failures`);
+console.log(`all ${CHOSEN.length - light} animated topics record; ${light} light pages; ${bad} structural failures`);
 process.exit(bad ? 1 : 0);
 JS
 node $T/t.mjs || exit 1
