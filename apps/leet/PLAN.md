@@ -43,7 +43,12 @@ half-built.
    year, a done tick, and an "Open on LeetCode" link. Built pages link to
    their walkthrough.
 5. [x] Tile on `/apps/`. Review with you before scaling up is still due.
-6. [ ] Scale-out, family by family, core tier first.
+6. [x] Animated pages: stopped at your request (Nov 3) after the 15 below.
+6b. [ ] Light pages (no animation, everything else): the rest of each core
+   pattern's ladder, family by family. Built with `light()` from
+   `apps/algorithms/topics/leet-light.js`; copy `lc-523.js`. Skipped for
+   now: Premium problems, and problems whose signature needs a tree or
+   linked list (the harness has no TreeNode / ListNode yet).
 7. [ ] Concurrency problems: raise the sandbox thread limit (`NPROC`) for
    those runs only.
 
@@ -63,7 +68,15 @@ half-built.
 Scale-out order: the canonical problem of every core pattern (the list
 comes from `catalog-data.js`), family by family.
 
-Built so far: 84, 312, 4; A family: 560, 239, 76, 42.
+Animated (15): A 560, 84, 239, 76, 42; B 875, 668, 4; C 462, 453, 229, 41,
+179, 3551; F 312.
+
+Light pages (18): A 523, 974, 1074, 85, 402, 316, 1944, 862, 1696, 1438,
+1499, 3, 992, 1004, 424, 438, 15, 881. Next: A6 (189, 1888, 899), then the
+B family ladder.
+
+A light page's stress case should leave the reference well under the 4 s
+CPU limit: this VM's CPU is burstable and timings vary several-fold.
 
 The self-test caches passing listings and harnesses by content hash
 (`~/.cache/patterns-selftest` on the VM), so a run only compiles what
