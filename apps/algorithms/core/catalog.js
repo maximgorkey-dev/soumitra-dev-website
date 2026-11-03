@@ -98,6 +98,12 @@ import { lc1482 } from "../topics/lc-1482.js";
 import { lc1552 } from "../topics/lc-1552.js";
 import { lc2141 } from "../topics/lc-2141.js";
 import { lc719 } from "../topics/lc-719.js";
+import { lc2560 } from "../topics/lc-2560.js";
+import { lc2040 } from "../topics/lc-2040.js";
+import { lc378 } from "../topics/lc-378.js";
+import { lc33 } from "../topics/lc-33.js";
+import { lc81 } from "../topics/lc-81.js";
+import { lc154 } from "../topics/lc-154.js";
 import { lc84 } from "../topics/lc-84.js";
 import { lc239 } from "../topics/lc-239.js";
 import { lc76 } from "../topics/lc-76.js";
@@ -137,7 +143,8 @@ export const ALGORITHMS = [
   factoryMethod, abstractFactory, builder, prototype, singleton,
 
   lc560, lc523, lc974, lc1074, lc84, lc85, lc402, lc316, lc1944, lc239, lc862, lc1696, lc1438, lc1499,
-  lc76, lc3, lc992, lc1004, lc424, lc438, lc42, lc15, lc881, lc875, lc1011, lc410, lc1482, lc1552, lc2141, lc668, lc719, lc4, lc462, lc453, lc229, lc41, lc179, lc3551, lc312,
+  lc76, lc3, lc992, lc1004, lc424, lc438, lc42, lc15, lc881, lc875, lc1011, lc410, lc1482, lc1552, lc2560, lc2141, lc668, lc719, lc2040, lc378,
+  lc4, lc33, lc81, lc154, lc462, lc453, lc229, lc41, lc179, lc3551, lc312,
 ];
 
 /* Kruskal rather than the first entry: it is the most complete treatment here,
