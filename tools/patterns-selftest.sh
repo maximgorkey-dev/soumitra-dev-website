@@ -155,7 +155,8 @@ for f in $T/leet/*/*.cpp; do
   if ! g++ -std=c++20 -O1 -Wall -o ${f%.cpp} $f 2> ${f%.cpp}.err; then
     echo "  HARNESS COMPILE FAILED $f"; head -15 ${f%.cpp}.err; FAILED=1; continue
   fi
-  out=$(timeout 10 ${f%.cpp})
+  # Generous: this VM's CPU is burstable, so wall time varies several-fold.
+  out=$(timeout 30 ${f%.cpp})
   last=$(echo "$out" | tail -1)
   if echo "$out" | grep -q '^FAIL' || ! echo "$last" | grep -Eq '^DONE ([0-9]+)/\1$'; then
     echo "  HARNESS FAILED $f:"; echo "$out" | grep -v '^PASS' | head -8; FAILED=1
