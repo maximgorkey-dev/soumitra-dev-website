@@ -84,17 +84,20 @@ Skipped in E: 253 (Premium), 23 (linked list), and the design classes 295,
 
 6c. [ ] Study pages (from Nov 5, at your request): reading only, for the rest
    of the catalogue. Built with `study()` in `leet-light.js`; copy
-   `lc-72.js`. Fields: statement, concepts ("which ideas come together"),
-   traps, followUps, explanation, analysis, and a fully commented `solution`.
-   No Solve tab, no tests, no brute force. The self-test compiles every
+   `lc-72.js`, the depth you approved: statement with an example, concepts
+   ("which ideas come together"), laddered hints, brute force and where it
+   breaks, invariant, traps with their consequences, L6 follow-ups with
+   answer sketches, an explanation that defines the table cell, base cases
+   and transitions and includes a worked `{table}`, analysis, and a fully
+   commented `solution`. No Solve tab and no tests. The self-test compiles every
    study solution together in one file (`-Wall -Werror`, with LeetCode's
    TreeNode and ListNode predefined), so tree and linked-list problems are
-   fine here. About 2-3 minutes per batch of ten, against 10-12 minutes per
-   six light pages. A study page can be upgraded later by switching to
-   `light()` and adding `hints`, `brute`, `invariant` and `tests`.
-   Done: F1 122, 123, 188, 309, 714, 198, 213, 376, 801, 552; F3 72, 1143,
-   97, 115, 10, 44, 1312; F4 516, 1039, 664.
-   Next: F4 1000, 730, 241; F5; F6 (trees now allowed); F7 onward, then G…Z.
+   fine here. About 3 minutes of VM time per batch; writing is the
+   bottleneck, so batches are about five pages. A study page can be upgraded
+   later by switching to `light()` and adding `tests`.
+   Done at full depth: F1 122, 123, 188, 309, 714, 198, 213, 376, 801, 552;
+   F3 72, 1143, 97, 115, 10, 44, 1312; F4 516, 1039, 664, 1000, 730, 241.
+   Next: F5 416, 494, 322, 518, 879, 1049, 139, 140; F6 (trees now allowed); F7 onward, then G…Z.
 
 A light page's stress case should leave the reference well under the 4 s
 CPU limit: this VM's CPU is burstable and timings vary several-fold.
