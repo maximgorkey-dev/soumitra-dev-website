@@ -14,8 +14,13 @@
  * holds a fully commented solution. The self-test only compiles it.
  *
  * study({ number, title, slug, difficulty, tier?, pattern, topic, see?, themes,
- *         blurb, statement, concepts, traps?, followUps?, explanation,
- *         analysis: { time, space, notes? }, solution })
+ *         blurb, statement, concepts, hints, brute, invariant, traps, followUps,
+ *         explanation, analysis: { time, space, notes? }, solution })
+ *
+ * brute and invariant may be a string or a list of paragraphs. The explanation
+ * should define the table (what one cell means), the base cases, each
+ * transition and why it is valid, the fill order, and a worked example as a
+ * { table } block.
  */
 export function study(p) {
   return {
@@ -42,6 +47,9 @@ export function study(p) {
       themes: p.themes,
       statement: p.statement,
       concepts: p.concepts,
+      hints: p.hints,
+      brute: p.brute,
+      invariant: p.invariant,
       traps: p.traps,
       followUps: p.followUps,
     },

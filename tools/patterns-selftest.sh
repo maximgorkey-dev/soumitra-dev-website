@@ -42,7 +42,7 @@ const studySrc = [];
 for (const a of CHOSEN) {
   if (!a.run && a.problem?.study) {
     study++;
-    for (const b of a.explanation) if (typeof b !== "string" && !b.h && !b.list && !b.tip) fail(a.id, "unknown explanation block");
+    for (const b of a.explanation) if (typeof b !== "string" && !b.h && !b.list && !b.tip && !b.table && !b.code) fail(a.id, "unknown explanation block");
     for (const k of ["statement", "concepts"]) if (!a.problem[k]?.length) fail(a.id, `problem.${k} missing`);
     if (!a.analysis?.time || !a.analysis?.space) fail(a.id, "analysis incomplete");
     const src = a.code?.files?.[0]?.source;
@@ -53,7 +53,7 @@ for (const a of CHOSEN) {
   if (!a.run) {
     // A light interview page: no animation or traced listing, only its harness.
     light++;
-    for (const b of a.explanation) if (typeof b !== "string" && !b.h && !b.list && !b.tip) fail(a.id, "unknown explanation block");
+    for (const b of a.explanation) if (typeof b !== "string" && !b.h && !b.list && !b.tip && !b.table && !b.code) fail(a.id, "unknown explanation block");
     for (const k of ["statement", "hints", "brute", "invariant", "traps", "followUps", "tests"]) if (!a.problem?.[k]) fail(a.id, `problem.${k} missing`);
     if (!a.analysis?.time || !a.analysis?.notes) fail(a.id, "analysis incomplete");
     harness(a);
@@ -94,7 +94,7 @@ for (const a of CHOSEN) {
       }
     }
   });
-  for (const b of a.explanation) if (typeof b !== "string" && !b.h && !b.list && !b.tip) fail(a.id, "unknown explanation block");
+  for (const b of a.explanation) if (typeof b !== "string" && !b.h && !b.list && !b.tip && !b.table && !b.code) fail(a.id, "unknown explanation block");
   const byResult = a.structure.kind === "sequence" || a.structure.kind === "grid";
   const out = byResult
     ? frames[frames.length - 1].metrics.filter((r) => r.label === "Result").map((r) => r.value)

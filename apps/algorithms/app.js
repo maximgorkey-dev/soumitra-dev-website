@@ -179,6 +179,15 @@ function renderExplanation(alg) {
       if (b.h) return `<h3 class="ex-h">${inline(b.h)}</h3>`;
       if (b.list) return `<ul class="ex-list">${b.list.map((i) => `<li>${inline(i)}</li>`).join("")}</ul>`;
       if (b.tip) return `<p class="ex-tip">${inline(b.tip)}</p>`;
+      if (b.code) return `<pre class="ex-code"><code>${esc(b.code)}</code></pre>`;
+      if (b.table) {
+        const { head = [], rows = [], caption } = b.table;
+        return `<div class="ex-table-wrap"><table class="ex-table">
+          ${caption ? `<caption>${inline(caption)}</caption>` : ""}
+          ${head.length ? `<thead><tr>${head.map((c) => `<th>${inline(String(c))}</th>`).join("")}</tr></thead>` : ""}
+          <tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${inline(String(c))}</td>`).join("")}</tr>`).join("")}</tbody>
+        </table></div>`;
+      }
       return "";
     })
     .join("");

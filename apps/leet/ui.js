@@ -93,7 +93,9 @@ function renderProblem(alg) {
   const hide = hidden(alg);
   const tier = tierOf(alg);
   const hints = p.hints || [];
-  const hintsShown = hide ? Number(store.get(`leet-hints:${alg.id}`, "0")) : hints.length;
+  // Study pages have no attempt mode, so their hints always unfold one at a time.
+  const hintsShown = hide || p.study ? Number(store.get(`leet-hints:${alg.id}`, "0")) : hints.length;
+  const paras = (x, cls = "") => [].concat(x || []).map((s) => `<p${cls ? ` class="${cls}"` : ""}>${inline(s)}</p>`).join("");
   const list = (h, items) => (items?.length ? `<h3 class="ex-h">${h}</h3><ul class="ex-list">${items.map((t) => `<li>${inline(t)}</li>`).join("")}</ul>` : "");
 
   api.el("panel-problem").innerHTML = `
@@ -133,8 +135,8 @@ function renderProblem(alg) {
            <button class="app-btn app-btn-ghost app-btn-sm" type="button" id="leet-reveal">Reveal everything</button>
          </div>`
       : `
-    ${p.brute ? `<h3 class="ex-h">Brute force, and where it breaks</h3><p>${inline(p.brute)}</p>` : ""}
-    ${p.invariant ? `<h3 class="ex-h">The invariant</h3><p class="ex-tip">${inline(p.invariant)}</p>` : ""}
+    ${p.brute ? `<h3 class="ex-h">Brute force, and where it breaks</h3>${paras(p.brute)}` : ""}
+    ${p.invariant ? `<h3 class="ex-h">The invariant</h3>${paras(p.invariant, "ex-tip")}` : ""}
     ${list("Traps", p.traps)}
     ${list("Follow-ups an L6 interviewer may ask", p.followUps)}`}`;
 
