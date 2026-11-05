@@ -9,7 +9,11 @@ A=/var/www/portfolio/apps/algorithms
 find $A -name '*.js' -exec sed -i 's/\r$//' {} +
 sed -i 's/\r$//' $A/styles.css
 chmod -R a+rX $A
-for f in $A/app.js $A/views/*.js $A/topics/*.js $A/core/*.js; do node --check "$f" || { echo "SYNTAX: $f"; exit 1; }; done
+JSC=$HOME/.cache/patterns-selftest/js; mkdir -p $JSC
+for f in $A/app.js $A/views/*.js $A/topics/*.js $A/core/*.js; do
+  k=$(sha1sum "$f" | cut -c1-40); [ -f $JSC/$k ] && continue
+  node --check "$f" || { echo "SYNTAX: $f"; exit 1; }; touch $JSC/$k
+done
 # The browser's data, so its list of built walkthroughs follows the topic files.
 (cd /var/www/portfolio && sed -i 's/\r$//' apps/leet/CATALOG.md && node tools/leet-catalog.mjs && chmod a+r apps/leet/catalog-data.js) || exit 1
 
