@@ -169,6 +169,14 @@ import { lc664 } from "../topics/lc-664.js";
 import { lc1000 } from "../topics/lc-1000.js";
 import { lc730 } from "../topics/lc-730.js";
 import { lc241 } from "../topics/lc-241.js";
+import { lc416 } from "../topics/lc-416.js";
+import { lc494 } from "../topics/lc-494.js";
+import { lc322 } from "../topics/lc-322.js";
+import { lc518 } from "../topics/lc-518.js";
+import { lc879 } from "../topics/lc-879.js";
+import { lc1049 } from "../topics/lc-1049.js";
+import { lc139 } from "../topics/lc-139.js";
+import { lc140 } from "../topics/lc-140.js";
 import { lc84 } from "../topics/lc-84.js";
 import { lc239 } from "../topics/lc-239.js";
 import { lc76 } from "../topics/lc-76.js";
@@ -217,6 +225,7 @@ export const ALGORITHMS = [
   lc122, lc123, lc188, lc309, lc714, lc198, lc213, lc376, lc801, lc552,
   lc72, lc1143, lc97, lc115, lc10, lc44, lc1312, lc516, lc1039, lc664,
   lc1000, lc730, lc241,
+  lc416, lc494, lc322, lc518, lc879, lc1049, lc139, lc140,
 ];
 
 /* Kruskal rather than the first entry: it is the most complete treatment here,
