@@ -25,9 +25,16 @@ let api = null;
 export function mount(alg, shell) {
   api = shell;
   if (!alg.problem) return;
-  renderMode(alg);
+  const study = !alg.problem.tests;
+  document.body.classList.toggle("leet-study", study);
+  if (study) {
+    api.el("leet-mode").innerHTML = "";
+    api.el("panel-solve").innerHTML = "";
+  } else {
+    renderMode(alg);
+  }
   renderProblem(alg);
-  renderSolve(alg);
+  if (!study) renderSolve(alg);
   applyMode(alg);
   api.showTab("problem");
 }
@@ -37,7 +44,7 @@ export function mount(alg, shell) {
 /* ------------------------------------------------------------------ */
 
 const modeOf = (alg) => store.get(`leet-mode:${alg.id}`, store.get("leet-mode", "study"));
-const hidden = (alg) => modeOf(alg) === "attempt" && !revealed.has(alg.id);
+const hidden = (alg) => !!alg.problem.tests && modeOf(alg) === "attempt" && !revealed.has(alg.id);
 
 function renderMode(alg) {
   const box = api.el("leet-mode");
@@ -85,7 +92,9 @@ function renderProblem(alg) {
   const { esc, inline } = api;
   const hide = hidden(alg);
   const tier = tierOf(alg);
-  const hintsShown = hide ? Number(store.get(`leet-hints:${alg.id}`, "0")) : p.hints.length;
+  const hints = p.hints || [];
+  const hintsShown = hide ? Number(store.get(`leet-hints:${alg.id}`, "0")) : hints.length;
+  const list = (h, items) => (items?.length ? `<h3 class="ex-h">${h}</h3><ul class="ex-list">${items.map((t) => `<li>${inline(t)}</li>`).join("")}</ul>` : "");
 
   api.el("panel-problem").innerHTML = `
     <div class="leet-meta">
@@ -107,13 +116,14 @@ function renderProblem(alg) {
 
     <h3 class="ex-h">The problem, in brief</h3>
     ${p.statement.map((s) => `<p>${inline(s)}</p>`).join("")}
+    ${list("Concepts that come together", p.concepts)}
 
-    <h3 class="ex-h">Hints</h3>
+    ${hints.length ? `<h3 class="ex-h">Hints</h3>
     <ol class="leet-hints">
-      ${p.hints.slice(0, hintsShown).map((h) => `<li>${inline(h)}</li>`).join("")}
-    </ol>
-    ${hintsShown < p.hints.length
-      ? `<button class="app-btn app-btn-ghost app-btn-sm" type="button" id="leet-hint">Show hint ${hintsShown + 1} of ${p.hints.length}</button>`
+      ${hints.slice(0, hintsShown).map((h) => `<li>${inline(h)}</li>`).join("")}
+    </ol>` : ""}
+    ${hintsShown < hints.length
+      ? `<button class="app-btn app-btn-ghost app-btn-sm" type="button" id="leet-hint">Show hint ${hintsShown + 1} of ${hints.length}</button>`
       : ""}
 
     ${hide
@@ -123,14 +133,10 @@ function renderProblem(alg) {
            <button class="app-btn app-btn-ghost app-btn-sm" type="button" id="leet-reveal">Reveal everything</button>
          </div>`
       : `
-    <h3 class="ex-h">Brute force, and where it breaks</h3>
-    <p>${inline(p.brute)}</p>
-    <h3 class="ex-h">The invariant</h3>
-    <p class="ex-tip">${inline(p.invariant)}</p>
-    <h3 class="ex-h">Traps</h3>
-    <ul class="ex-list">${p.traps.map((t) => `<li>${inline(t)}</li>`).join("")}</ul>
-    <h3 class="ex-h">Follow-ups an L6 interviewer may ask</h3>
-    <ul class="ex-list">${p.followUps.map((t) => `<li>${inline(t)}</li>`).join("")}</ul>`}`;
+    ${p.brute ? `<h3 class="ex-h">Brute force, and where it breaks</h3><p>${inline(p.brute)}</p>` : ""}
+    ${p.invariant ? `<h3 class="ex-h">The invariant</h3><p class="ex-tip">${inline(p.invariant)}</p>` : ""}
+    ${list("Traps", p.traps)}
+    ${list("Follow-ups an L6 interviewer may ask", p.followUps)}`}`;
 
   api.el("leet-tier").addEventListener("change", (e) => {
     store.set(`leet-tier:${alg.id}`, e.target.value);

@@ -30,8 +30,26 @@ const harness = (a) => {
   fs.writeFileSync(`/tmp/pt/leet/${a.id}/reference.cpp`, buildHarness(t, t.reference));
   if (t.brute) fs.writeFileSync(`/tmp/pt/leet/${a.id}/brute.cpp`, buildHarness(t, t.brute, { stress: false }));
 };
-let light = 0;
+let light = 0, study = 0;
+// Study pages have no harness: their solutions are only compiled, all in one
+// file, each inside its own namespace.
+const STUDY_PRELUDE = `#include <bits/stdc++.h>
+using namespace std;
+struct ListNode { int val; ListNode* next; ListNode() : val(0), next(nullptr) {} ListNode(int x) : val(x), next(nullptr) {} ListNode(int x, ListNode* n) : val(x), next(n) {} };
+struct TreeNode { int val; TreeNode* left; TreeNode* right; TreeNode() : val(0), left(nullptr), right(nullptr) {} TreeNode(int x) : val(x), left(nullptr), right(nullptr) {} TreeNode(int x, TreeNode* l, TreeNode* r) : val(x), left(l), right(r) {} };
+`;
+const studySrc = [];
 for (const a of CHOSEN) {
+  if (!a.run && a.problem?.study) {
+    study++;
+    for (const b of a.explanation) if (typeof b !== "string" && !b.h && !b.list && !b.tip) fail(a.id, "unknown explanation block");
+    for (const k of ["statement", "concepts"]) if (!a.problem[k]?.length) fail(a.id, `problem.${k} missing`);
+    if (!a.analysis?.time || !a.analysis?.space) fail(a.id, "analysis incomplete");
+    const src = a.code?.files?.[0]?.source;
+    if (!src || !/class Solution/.test(src)) fail(a.id, "no class Solution");
+    else studySrc.push(`namespace ${a.id.replace(/-/g, "_")} {\n#line 1 "${a.id}"\n${src}\n}`);
+    continue;
+  }
   if (!a.run) {
     // A light interview page: no animation or traced listing, only its harness.
     light++;
@@ -91,7 +109,11 @@ for (const a of CHOSEN) {
   harness(a);
   console.log(`  ${a.id}: ${frames.length} frames, ${out.length} printed lines`);
 }
-console.log(`all ${CHOSEN.length - light} animated topics record; ${light} light pages; ${bad} structural failures`);
+if (studySrc.length) {
+  fs.mkdirSync("/tmp/pt/study", { recursive: true });
+  fs.writeFileSync("/tmp/pt/study/all.cpp", STUDY_PRELUDE + studySrc.join("\n") + "\nint main() {}\n");
+}
+console.log(`all ${CHOSEN.length - light - study} animated topics record; ${light} light pages; ${study} study pages; ${bad} structural failures`);
 process.exit(bad ? 1 : 0);
 JS
 node $T/t.mjs || exit 1
@@ -165,6 +187,16 @@ for f in $T/leet/*/*.cpp; do
     touch $CACHE/h-$key
   fi
 done
+S=$T/study/all.cpp
+if [ -f $S ]; then
+  key=$(sha1sum < $S | cut -c1-20)
+  if [ -f $CACHE/s-$key ]; then echo "  study solutions: unchanged, compiled before"
+  elif g++ -std=c++20 -Wall -Werror -fsyntax-only $S 2> $T/study/err; then
+    echo "  study solutions: all $(grep -c '^namespace lc_' $S) compile with -Wall -Werror"; touch $CACHE/s-$key
+  else
+    echo "  STUDY COMPILE FAILED:"; head -20 $T/study/err; FAILED=1
+  fi
+fi
 if [ "${1:-}" = "show" ]; then for d in */; do for o in $d*.out; do echo "--- $o"; cat $o; done; done; fi
 
 # Optional preview of one topic on a temporary public page.

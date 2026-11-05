@@ -12,6 +12,7 @@
 /* Attempt first: no picture and no solution tabs until you pass or reveal. */
 .leet-attempt .viz, .leet-attempt .leet-spoiler { display: none; }
 .no-viz .viz { display: none; }
+.leet-study [data-tab="solve"], .leet-study #leet-mode { display: none; }
 .leet-see { margin: -6px 0 16px; font-size: 0.9em; color: var(--muted, #8b949e); }
 .leet-see a { color: #58a6ff; font-weight: 600; }
 

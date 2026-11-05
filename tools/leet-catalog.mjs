@@ -5,8 +5,8 @@ import fs from "fs";
 const md = fs.readFileSync("apps/leet/CATALOG.md", "utf8").replace(/\r/g, "");
 const built = fs.readdirSync("apps/algorithms/topics")
   .map((f) => /^lc-(\d+)\.js$/.exec(f)?.[1]).filter(Boolean).map(Number);
-// Light pages are built with light() and have no animation.
-const animated = built.filter((n) => !/\blight\(/.test(fs.readFileSync(`apps/algorithms/topics/lc-${n}.js`, "utf8")));
+// Light and study pages are built with light() or study() and have no animation.
+const animated = built.filter((n) => !/\b(light|study)\(/.test(fs.readFileSync(`apps/algorithms/topics/lc-${n}.js`, "utf8")));
 
 const families = [];
 const patterns = new Map();
