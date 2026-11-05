@@ -96,8 +96,8 @@ Skipped in E: 253 (Premium), 23 (linked list), and the design classes 295,
    bottleneck, so batches are about five pages. A study page can be upgraded
    later by switching to `light()` and adding `tests`.
    Done at full depth: F1 122, 123, 188, 309, 714, 198, 213, 376, 801, 552;
-   F3 72, 1143, 97, 115, 10, 44, 1312; F4 516, 1039, 664, 1000, 730, 241; F5 416, 494, 322, 518, 879, 1049, 139, 140.
-   Next: F6 (trees now allowed); F7 onward, then G…Z.
+   F3 72, 1143, 97, 115, 10, 44, 1312; F4 516, 1039, 664, 1000, 730, 241; F5 416, 494, 322, 518, 879, 1049, 139, 140; F6 124, 337, 968, 834, 2246.
+   Next: F7 onward, then G…Z.
 
 A light page's stress case should leave the reference well under the 4 s
 CPU limit: this VM's CPU is burstable and timings vary several-fold.
