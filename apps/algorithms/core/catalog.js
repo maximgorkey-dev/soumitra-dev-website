@@ -182,6 +182,13 @@ import { lc337 } from "../topics/lc-337.js";
 import { lc968 } from "../topics/lc-968.js";
 import { lc834 } from "../topics/lc-834.js";
 import { lc2246 } from "../topics/lc-2246.js";
+import { lc300 } from "../topics/lc-300.js";
+import { lc354 } from "../topics/lc-354.js";
+import { lc1235 } from "../topics/lc-1235.js";
+import { lc1671 } from "../topics/lc-1671.js";
+import { lc1713 } from "../topics/lc-1713.js";
+import { lc2111 } from "../topics/lc-2111.js";
+import { lc2407 } from "../topics/lc-2407.js";
 import { lc84 } from "../topics/lc-84.js";
 import { lc239 } from "../topics/lc-239.js";
 import { lc76 } from "../topics/lc-76.js";
@@ -232,6 +239,7 @@ export const ALGORITHMS = [
   lc1000, lc730, lc241,
   lc416, lc494, lc322, lc518, lc879, lc1049, lc139, lc140,
   lc124, lc337, lc968, lc834, lc2246,
+  lc300, lc354, lc1235, lc1671, lc1713, lc2111, lc2407,
 ];
 
 /* Kruskal rather than the first entry: it is the most complete treatment here,
