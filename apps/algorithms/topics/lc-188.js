@@ -7,60 +7,99 @@ export const lc188 = study({
   difficulty: "H",
   pattern: "F1",
   topic: "F1 · State-machine DP",
-  themes: ["Stocks", "2k states"],
-  blurb: "At most k transactions: buy[j] and sell[j] for j = 1..k, each fed by the previous state. When k ≥ n / 2 the limit never binds, so sum every rise.",
+  themes: ["Stocks", "2k states", "Bound that never binds"],
+  blurb: "At most k transactions: the chain of 123 extended to k pairs, buy[j] and sell[j]. If 2k ≥ n the limit cannot bind, and the answer is the unlimited one, the sum of all rises.",
   statement: [
     "prices[i] is the price on day i. Complete at most k transactions, holding at most one share at a time. Return the largest profit.",
-    "k ≤ 100, up to 1000 days.",
+    "k up to 100, up to 1000 days. Example: k = 2, prices [3, 2, 6, 5, 0, 3] gives 7 (buy 2, sell 6; buy 0, sell 3).",
   ],
   concepts: [
-    "State-machine DP generalised: a chain of 2k states, buy[1], sell[1], …, buy[k], sell[k].",
-    "Capacity bound: n days allow at most n / 2 useful transactions, so a larger k is unlimited (problem 122).",
-    "Rolling arrays: each day updates the chain in place, in increasing j.",
+    "State-machine DP with a transaction counter: states buy[j] (holding the j-th share) and sell[j] (j trades completed), for j = 1..k.",
+    "Each state is fed only by the previous one in the chain: buy[j] from sell[j − 1], sell[j] from buy[j].",
+    "Capacity argument: a profitable transaction needs at least two days, so with n days at most n / 2 trades are useful. If k ≥ n / 2, the limit is irrelevant.",
+    "Rolling over days: one array of size k per state, updated in place each day.",
   ],
+  hints: [
+    "Solve k = 2 first (123). What grows when k grows?",
+    "The number of milestones: two per transaction.",
+    "Store them in arrays indexed by the transaction number j. Write buy[j] and sell[j] in terms of the previous milestone.",
+    "What happens when k is very large compared with n?",
+  ],
+  brute: [
+    "Choose up to k disjoint buy/sell intervals: the number of choices is about C(n, 2k), astronomical for n = 1000 and k = 100.",
+    "A recursion f(day, transactions left, holding) has only n · k · 2 distinct arguments; without a memo it re-solves them exponentially often. Tabulating gives O(n · k).",
+  ],
+  invariant: "After day i, buy[j] and sell[j] are the best balances of any plan that, by the end of day i, has bought its j-th share (still holding it) or completed j trades.",
   traps: [
-    "Allocating O(n · k) when O(k) suffices.",
-    "Huge k with a large n in other versions of the problem: the n / 2 shortcut avoids O(n · k) time.",
-    "Starting buy[j] at 0 instead of −infinity.",
+    "O(n · k) memory when O(k) is enough: the day dimension can be rolled.",
+    "Forgetting the large-k shortcut: in versions of the problem with big k, O(n · k) times out while the greedy is O(n).",
+    "Starting buy[j] at 0 instead of −∞.",
+    "Iterating j downwards and reading sell[j − 1] from yesterday is also correct; mixing the two styles by accident is not.",
   ],
   followUps: [
-    "Very large n and k: the \"alien trick\" (Lagrangian relaxation) binary searches a per-transaction penalty, O(n log P).",
-    "A fee or cooldown on top of k.",
+    "n and k both up to 10⁵: the \"alien trick\" (Lagrangian relaxation). Charge a penalty λ per transaction and solve the unlimited problem with that fee (714), counting trades; binary search λ so that the count is k. O(n log P).",
+    "Return the trades themselves: store argmax choices per (day, j), or rebuild from the final values.",
+    "A fee or cooldown in addition to k: put the fee on the sell transition; for a cooldown, buy[j] reads sell[j − 1] from two days ago.",
   ],
   explanation: [
-    "Exactly as in 123, but with k pairs of milestones. buy[j] is the best profit after the j-th purchase, sell[j] after the j-th sale. Each day, for j from 1 to k: buy[j] = max(buy[j], sell[j − 1] − p) and sell[j] = max(sell[j], buy[j] + p), with sell[0] = 0.",
-    "Going in increasing j within a day may chain a sell and a buy on the same day, which gains nothing and is harmless.",
-    "If 2k ≥ n, the limit can never be reached, and the answer is the unlimited one: the sum of all positive daily rises.",
-    { tip: "Signal: \"at most k\" of something along a sequence. Add the count to the state, and check whether k can ever bind." },
+    { h: "The states" },
+    "For j = 1..k: buy[j] is the best balance of any plan that has bought its j-th share and is still holding it, and sell[j] is the best balance after completing exactly j trades (or fewer, which is never worse). sell[0] = 0 represents \"no trades yet\".",
+    { h: "Start" },
+    "buy[j] = −∞ for every j (nothing bought yet); sell[j] = 0.",
+    { h: "One day's transitions" },
+    { code: "for j = 1..k:\n    buy[j]  = max(buy[j],  sell[j-1] - price)   // j-th purchase today\n    sell[j] = max(sell[j], buy[j]   + price)    // j-th sale today" },
+    "As in 123, processing j upwards within a day can chain a sale and a purchase on the same day, which earns 0 and is harmless.",
+    { h: "When the limit never binds" },
+    "Every profitable trade uses at least two distinct days, and trades do not overlap, so at most n / 2 trades are possible. If 2k ≥ n, solve the unlimited problem: the sum of all positive daily rises (122).",
+    { h: "A worked example: k = 2, prices [3, 2, 6, 5, 0, 3]" },
+    {
+      table: {
+        head: ["day", "price", "buy[1]", "sell[1]", "buy[2]", "sell[2]"],
+        rows: [
+          [0, 3, -3, 0, -3, 0],
+          [1, 2, -2, 0, -2, 0],
+          [2, 6, -2, 4, -2, 4],
+          [3, 5, -2, 4, -1, 4],
+          [4, 0, 0, 4, 4, 4],
+          [5, 3, 0, 4, 4, "**7**"],
+        ],
+        caption: "Values at the end of each day. n = 6 and 2k = 4 < 6, so the DP is needed.",
+      },
+    },
+    "Day 4: buy[2] = sell[1] − 0 = 4, the first profit (bought at 2, sold at 6) carried into a second share bought at 0. Day 5: sell[2] = 4 + 3 = 7.",
+    { tip: "Signal: a limit on how many times you may act. Add the count to the state, and first check whether the limit can ever be reached." },
   ],
-  analysis: { time: "O(n · k), or O(n) when k ≥ n / 2", space: "O(k)" },
+  analysis: {
+    time: "O(n · k), or O(n) when 2k ≥ n",
+    space: "O(k)",
+    notes: ["n = 1000 and k = 100 is 10⁵ updates."],
+  },
   solution: `class Solution {
 public:
     int maxProfit(int k, vector<int>& prices) {
         int n = prices.size();
 
-        // With 2k >= n the transaction limit never binds:
-        // take every positive day-to-day rise (problem 122).
+        // At most n/2 trades can be useful, so a larger k never binds:
+        // collect every positive day-to-day rise (problem 122).
         if (2 * k >= n) {
             int profit = 0;
             for (int i = 1; i < n; ++i) profit += max(0, prices[i] - prices[i - 1]);
             return profit;
         }
 
-        // buy[j]:  best profit after the j-th purchase (holding a share).
-        // sell[j]: best profit after the j-th sale (holding nothing).
-        // sell[0] = 0 is the state before any transaction.
+        // buy[j]:  best balance holding the j-th share.
+        // sell[j]: best balance after j completed trades; sell[0] = 0 is "none yet".
         vector<int> buy(k + 1, INT_MIN), sell(k + 1, 0);
 
         for (int p : prices) {
             for (int j = 1; j <= k; ++j) {
-                // Buy the j-th share after the (j-1)-th sale, or keep the earlier best.
+                // The j-th purchase uses the profit of j-1 trades.
                 buy[j] = max(buy[j], sell[j - 1] - p);
-                // Sell the j-th share today, or keep the earlier best.
+                // The j-th sale closes the j-th share.
                 sell[j] = max(sell[j], buy[j] + p);
             }
         }
-        // sell[k] >= sell[j] for every j <= k, so it covers fewer transactions too.
+        // sell[k] is at least sell[j] for every j <= k.
         return sell[k];
     }
 };
