@@ -78,7 +78,23 @@ Light pages (60): A 523, 974, 1074, 85, 402, 316, 1944, 862, 1696, 1438,
 502, 871, 1642, 2233, 2208, 135, 665, 921, 1541.
 Not yet: 654, 2471 (trees), 567, 1283, 1870, 153, 1962, 1046, 1909, 1827
 (easy variants of built pages).
-Next: E (heaps, sweep lines and intervals), then F onward.
+E (light): 218, 2251, 480, 373, 786, 1439, 2386, 57, 347, 692, 1985, 240.
+Skipped in E: 253 (Premium), 23 (linked list), and the design classes 295,
+732, 352, 715, 703 (the harness calls one function).
+
+6c. [ ] Study pages (from Nov 5, at your request): reading only, for the rest
+   of the catalogue. Built with `study()` in `leet-light.js`; copy
+   `lc-72.js`. Fields: statement, concepts ("which ideas come together"),
+   traps, followUps, explanation, analysis, and a fully commented `solution`.
+   No Solve tab, no tests, no brute force. The self-test compiles every
+   study solution together in one file (`-Wall -Werror`, with LeetCode's
+   TreeNode and ListNode predefined), so tree and linked-list problems are
+   fine here. About 2-3 minutes per batch of ten, against 10-12 minutes per
+   six light pages. A study page can be upgraded later by switching to
+   `light()` and adding `hints`, `brute`, `invariant` and `tests`.
+   Done: F1 122, 123, 188, 309, 714, 198, 213, 376, 801, 552; F3 72, 1143,
+   97, 115, 10, 44, 1312; F4 516, 1039, 664.
+   Next: F4 1000, 730, 241; F5; F6 (trees now allowed); F7 onward, then G…Z.
 
 A light page's stress case should leave the reference well under the 4 s
 CPU limit: this VM's CPU is burstable and timings vary several-fold.
